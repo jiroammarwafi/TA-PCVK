@@ -11,7 +11,7 @@ Mengenali **7 kelas ekspresi wajah** dari dataset **CK+** dan **JAFFE** mengguna
 | Kode | Bagian | Cakupan | Status |
 |------|--------|---------|--------|
 | **A1** | Data & Praproses | Loading dataset (CK+ & JAFFE), EDA, grayscale → resize 128×128 → histogram equalization, artefak `.npz` | ✅ Selesai |
-| **A2** | Feature Engineering | SWT Haar level-1 → PHOG pada subband LL | ⏳ Belum dimulai |
+| **A2** | Feature Engineering | SWT Haar level-1 → PHOG pada subband A1 (LL), ekspor fitur 680-D | ✅ Selesai |
 | **A3** | Model & Optimasi | Seleksi fitur LDA → classifier Jaya-LSSVM → evaluasi 5-fold stratified CV | ⏳ Belum dimulai |
 | **A4** | Web & Integrasi | Website penyajian sistem dan hasil | ⏳ Belum dimulai |
 
@@ -29,11 +29,23 @@ Citra wajah (CK+ / JAFFE)
 .
 ├── README.md
 ├── requirements.txt           # Dependensi Python (Python 3.14)
-├── data/                      # [A1] artefak praproses (.npz) — input untuk A2
-│   ├── ck_preprocessed.npz
-│   └── jaffe_preprocessed.npz
+├── pytest.ini                 # Konfigurasi test runner pytest
+├── data/                      # Artefak dataset praproses (A1) & matriks fitur (A2)
+│   ├── ck_preprocessed.npz    # [A1] Citra praproses CK+ (981, 128, 128)
+│   ├── jaffe_preprocessed.npz # [A1] Citra praproses JAFFE (213, 128, 128)
+│   ├── ck_features.npz        # [A2] Matriks fitur CK+ (981, 680) float32
+│   └── jaffe_features.npz     # [A2] Matriks fitur JAFFE (213, 680) float32
+├── feature-engineering/       # [A2] Kode modular & eksperimen ekstraksi fitur
+│   ├── __init__.py
+│   ├── features.py            # Modul fungsional (swt_haar_level1, phog, extract_features)
+│   └── A2-feature-extraction.ipynb # Notebook eksekusi, visualisasi, assert, statistik
+├── reports/
+│   └── figures/
+│       └── phog_levels_visualization.png # Visualisasi piramida spasial PHOG
+├── tests/
+│   └── test_features.py       # Unit test suite verifikasi dimensi & integritas fitur
 └── model-experiment/
-    └── LS-SVM.ipynb           # [A1] notebook: loading, EDA, praproses, pratinjau SWT
+    └── LS-SVM.ipynb           # [A1] notebook praproses dataset
 ```
 
 > Folder/kode tahap A2, A3, dan A4 akan ditambahkan oleh anggota masing-masing melalui feature branch sendiri.
@@ -117,6 +129,61 @@ Pemetaan label:
 2. **Resize 128×128** dengan interpolasi adaptif (`INTER_AREA` untuk downscaling, `INTER_CUBIC` untuk upscaling CK+ 48×48) — syarat vektor fitur PHOG berukuran tetap.
 3. **Histogram equalization** — normalisasi iluminasi/kontras agar fitur robust terhadap variasi pencahayaan.
 4. **Tanpa split train/test di A1** — jurnal memakai *5-fold stratified cross-validation*; pembagian fold dilakukan di tahap eksperimen A3 (`sklearn.model_selection.StratifiedKFold`).
+
+
+## A2 — Feature Engineering
+
+Modul dan eksperimen fitur hybrid **Stationary Wavelet Transform (SWT Haar Level-1) + Pyramid of Histograms of Oriented Gradients (PHOG)** telah selesai diimplementasikan sesuai jurnal Kar et al. (2021).
+
+### Cara Menggunakan Modul Modular (`features.py`)
+
+A3 dan A4 dapat langsung mengimpor fungsi dari modul `features.py`:
+
+```python
+from features import swt_haar_level1, phog, extract_features
+
+# 1. Dekomposisi wavelet pada 1 citra (128x128)
+subbands = swt_haar_level1(img)  # dict: 'A1', 'H1', 'V1', 'D1' (semua 128x128 float64)
+
+# 2. PHOG pada subband aproksimasi A1 (L=3, K=8 -> 680 dimensi)
+vec = phog(subbands['A1'], L=3, K=8, norm='per_level')  # shape (680,) float32
+
+# 3. Ekstraksi langsung untuk citra tunggal atau batch (N, 128, 128)
+F = extract_features(X)  # shape (N, 680) float32
+```
+
+### Artefak Fitur — Handoff ke A3 (Model & Optimasi)
+
+A3 **tidak perlu mengekstrak ulang fitur**; cukup muat artefak `.npz`:
+
+```python
+import numpy as np
+
+ck_feat = np.load('data/ck_features.npz')
+F_ck = ck_feat['F']             # (981, 680) float32
+y_ck = ck_feat['y']             # (981,) int8
+subjects_ck = ck_feat['subjects']
+classes_ck = ck_feat['class_names'].tolist()
+
+jaffe_feat = np.load('data/jaffe_features.npz')
+F_jaffe = jaffe_feat['F']       # (213, 680) float32
+y_jaffe = jaffe_feat['y']       # (213,) int8
+```
+
+### Parameter Resmi Sesuai Jurnal
+- **Wavelet**: Haar level-1 (*undecimated* / tanpa downsampling → *shift-invariant*).
+- **Subband**: Hanya $A_1$ (aproksimasi LL, kontur struktur wajah frekuensi rendah).
+- **PHOG**:
+  - $L = 3$ tingkat resolusi piramida spasial: $1 + 4 + 16 + 64 = 85$ sel spasial.
+  - $K = 8$ bin orientasi dalam rentang $[0 - 360^\circ]$ (lebar tiap bin $45^\circ$).
+  - Pembobotan bin menggunakan magnitudo gradien Sobel $3\times 3$.
+  - Normalisasi: $L_2$ per level piramida lalu dikonkatenasi.
+  - Dimensi vektor total: $85 \times 8 = 680$ fitur per citra.
+
+### Menjalankan Unit Test
+```powershell
+pytest -v
+```
 
 ## Konvensi Kontribusi (Tim)
 
