@@ -6,6 +6,6 @@ Mengimplementasikan:
 - Algoritma Optimasi Metaheuristik (Jaya)
 """
 
-from .lssvm import LSSVMClassifier
+from .lssvm import LSSVMClassifier, OneVsOneLSSVMClassifier, MulticlassLSSVM
 
-__all__ = ["LSSVMClassifier"]
+__all__ = ["LSSVMClassifier", "OneVsOneLSSVMClassifier", "MulticlassLSSVM"]

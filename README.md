@@ -12,7 +12,7 @@ Mengenali **7 kelas ekspresi wajah** dari dataset **CK+** dan **JAFFE** mengguna
 |------|--------|---------|--------|
 | **A1** | Data & Praproses | Loading dataset (CK+ & JAFFE), EDA, grayscale → resize 128×128 → histogram equalization, artefak `.npz` | ✅ Selesai |
 | **A2** | Feature Engineering | SWT Haar level-1 → PHOG pada subband A1 (LL), ekspor fitur 680-D | ✅ Selesai |
-| **A3** | Model & Optimasi | Seleksi fitur LDA → classifier Jaya-LSSVM → evaluasi 5-fold stratified CV | 🟡 Minggu 12 Selesai (Minggu 13 On Progress) |
+| **A3** | Model & Optimasi | Seleksi fitur LDA → classifier Jaya-LSSVM → evaluasi 5-fold stratified CV | ✅ Minggu 12 & 13 Selesai (Minggu 14 On Progress) |
 | **A4** | Web & Integrasi | Website penyajian sistem dan hasil | ⏳ Belum dimulai |
 
 ```
@@ -41,25 +41,32 @@ Citra wajah (CK+ / JAFFE)
 │   ├── features.py            # Modul fungsional (swt_haar_level1, phog, extract_features)
 │   └── A2-feature-extraction.ipynb # Notebook eksekusi, visualisasi, assert, statistik
 ├── reports/
-│   ├── baseline_summary.csv   # [A3] Tabel ringkasan hasil baseline 5-fold CV
+│   ├── baseline_summary.csv   # [A3] Tabel ringkasan hasil baseline SVM 5-fold CV
 │   ├── baseline_ck_results.json
 │   ├── baseline_jaffe_results.json
+│   ├── lssvm_multiclass_summary.csv # [A3] Tabel ringkasan hasil LS-SVM multiclass v0
+│   ├── lssvm_multiclass_ck_results.json
+│   ├── lssvm_multiclass_jaffe_results.json
 │   └── figures/
 │       ├── phog_levels_visualization.png
 │       ├── baseline_confusion_matrix_ck.png   # [A3] Confusion matrix baseline CK+
 │       ├── baseline_confusion_matrix_jaffe.png# [A3] Confusion matrix baseline JAFFE
+│       ├── lssvm_confusion_matrix_ck.png      # [A3] Confusion matrix LS-SVM OvO CK+
+│       ├── lssvm_confusion_matrix_jaffe.png   # [A3] Confusion matrix LS-SVM OvO JAFFE
 │       └── lssvm_toy_xor_iris.png             # [A3] Visualisasi batas keputusan LS-SVM
 ├── tests/
 │   ├── test_features.py       # [A2] Unit test suite fitur
 │   ├── test_baseline.py       # [A3] Unit test suite baseline LDA + SVM-RBF
-│   └── test_lssvm.py          # [A3] Unit test suite LS-SVM (KKT, XOR, Iris)
+│   └── test_lssvm.py          # [A3] Unit test suite LS-SVM (biner & multiclass OvO)
 └── model-experiment/
     ├── __init__.py
-    ├── lssvm.py               # [A3] Implementasi modul LS-SVM biner (KKT solver)
-    ├── baseline.py            # [A3] Pipeline baseline LDA + SVM-RBF & metrik Sen/Spe/Acc
-    ├── evaluate_baseline.py   # [A3] Skrip eksekusi evaluasi baseline & ekspor laporan
+    ├── lssvm.py               # [A3] Modul LS-SVM (biner & One-vs-One multiclass)
+    ├── baseline.py            # [A3] Pipeline baseline LDA + SVM-RBF & metrik
+    ├── evaluate_baseline.py   # [A3] Skrip eksekusi baseline SVM & ekspor laporan
+    ├── evaluate_lssvm.py      # [A3] Skrip eksekusi LS-SVM OvO Grid Search (Minggu 13)
     ├── visualize_toy_datasets.py # [A3] Visualisasi batas keputusan pada data mainan
     ├── A3-model-experiment.ipynb # [A3] Notebook eksperimen model Minggu 12
+    ├── A3-minggu13-multiclass-lssvm.ipynb # [A3] Notebook eksperimen model Minggu 13
     └── LS-SVM.ipynb           # [A1] notebook praproses dataset
 ```
 
@@ -233,9 +240,9 @@ $$\begin{bmatrix} 0 & y^T \\ y & \Omega + \left(\gamma^{-1} + \epsilon\right) I_
 - **Dataset Iris (Setosa vs Versicolor)**: LS-SVM biner mencapai akurasi **100%**, identik dengan performa `sklearn.svm.SVC(kernel='rbf')` (paritas sempurna).
 - Visualisasi batas keputusan: `reports/figures/lssvm_toy_xor_iris.png`.
 
-### Menjalankan Eksperimen & Test Suite
+### Menjalankan Eksperimen & Test Suite (Minggu 12)
 ```powershell
-# Jalankan seluruh unit test suite (16 test lulus 100%)
+# Jalankan seluruh unit test suite
 pytest -v
 
 # Jalankan evaluasi baseline & ekspor laporan
@@ -243,6 +250,37 @@ python model-experiment/evaluate_baseline.py
 
 # Buat visualisasi batas keputusan pada data mainan
 python model-experiment/visualize_toy_datasets.py
+```
+
+## A3 — Model & Optimasi (Minggu 13)
+
+Implementasi tahap **Minggu 13** berfokus pada:
+1. **LS-SVM Multiclass (One-vs-One / OvO)**: Mengembangkan kelas `OneVsOneLSSVMClassifier` (`MulticlassLSSVM`) di `model-experiment/lssvm.py`. Untuk 7 kelas ekspresi wajah, dibangun $7 \times 6 / 2 = 21$ classifier biner LS-SVM dengan strategi *majority voting* dan *confidence margin tie-breaking*.
+2. **Evaluasi 5-Fold Stratified Cross-Validation dengan Grid Search Bersarang**:
+   - Pipeline: **LDA ($680 \to 6$ komponen) $\to$ StandardScaler $\to$ OvO LS-SVM**.
+   - Grid search internal 3-fold pada fold train untuk tuning hyperparameter $(\gamma, \sigma)$: $\gamma \in [1.0, 10.0, 50.0, 100.0, 500.0]$ dan $\sigma \in [1.0, 1.5, 2.0, 3.0, 5.0]$.
+   - Mencegah *data leakage* dengan menerapkan fitting LDA dan StandardScaler hanya pada fold training.
+
+### Hasil Baseline Deskriptif v0 (LS-SVM Multiclass, 5-Fold Stratified CV)
+
+| Dataset | Sampel | Model | Mean Accuracy (%) | Std Acc (%) | Macro Sensitivity (%) | Macro Specificity (%) |
+|---------|--------|-------|-------------------|-------------|-----------------------|-----------------------|
+| **CK+** | 981 | LDA + OvO LS-SVM (Grid Search) | **96.64%** | ±0.94% | 97.02% | 99.44% |
+| **JAFFE** | 213 | LDA + OvO LS-SVM (Grid Search) | **79.36%** | ±7.52% | 79.28% | 96.56% |
+
+Artefak hasil Minggu 13:
+- Ringkasan tabel: `reports/lssvm_multiclass_summary.csv`
+- Detail parameter per-fold & confusion matrix: `reports/lssvm_multiclass_ck_results.json` dan `reports/lssvm_multiclass_jaffe_results.json`
+- Plot confusion matrix: `reports/figures/lssvm_confusion_matrix_ck.png` dan `reports/figures/lssvm_confusion_matrix_jaffe.png`
+- Notebook eksekusi & analisis per kelas: `model-experiment/A3-minggu13-multiclass-lssvm.ipynb`
+
+### Menjalankan Eksperimen & Test Suite (Minggu 13)
+```powershell
+# Jalankan seluruh unit test suite (18 test lulus 100%)
+pytest -v
+
+# Jalankan evaluasi 5-fold CV LS-SVM OvO Grid Search pada CK+ dan JAFFE
+python model-experiment/evaluate_lssvm.py
 ```
 
 ## Konvensi Kontribusi (Tim)
