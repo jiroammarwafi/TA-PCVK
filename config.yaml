@@ -56,6 +56,11 @@ lssvm:
   kernel: "rbf"
   ridge_jitter: 1.0e-8
 
+grid_search:
+  gamma_values: [1.0, 10.0, 50.0, 100.0, 500.0]
+  sigma_values: [1.0, 1.5, 2.0, 3.0, 5.0]
+  internal_cv_splits: 3
+
 toy_datasets:
   xor:
     n_samples: 200
