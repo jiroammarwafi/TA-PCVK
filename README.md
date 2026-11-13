@@ -12,7 +12,7 @@ Mengenali **7 kelas ekspresi wajah** dari dataset **CK+** dan **JAFFE** mengguna
 |------|--------|---------|--------|
 | **A1** | Data & Praproses | Loading dataset (CK+ & JAFFE), EDA, grayscale → resize 128×128 → histogram equalization, artefak `.npz` | ✅ Selesai |
 | **A2** | Feature Engineering | SWT Haar level-1 → PHOG pada subband A1 (LL), ekspor fitur 680-D | ✅ Selesai |
-| **A3** | Model & Optimasi | Seleksi fitur LDA → classifier Jaya-LSSVM → evaluasi 5-fold stratified CV | ⏳ Belum dimulai |
+| **A3** | Model & Optimasi | Seleksi fitur LDA → classifier Jaya-LSSVM → evaluasi 5-fold stratified CV | 🟡 Minggu 12 Selesai (Minggu 13 On Progress) |
 | **A4** | Web & Integrasi | Website penyajian sistem dan hasil | ⏳ Belum dimulai |
 
 ```
@@ -28,7 +28,8 @@ Citra wajah (CK+ / JAFFE)
 ```
 .
 ├── README.md
-├── requirements.txt           # Dependensi Python (Python 3.14)
+├── config.yaml                # Konfigurasi parameter terpusat (DoD A3)
+├── requirements.txt           # Dependensi Python
 ├── pytest.ini                 # Konfigurasi test runner pytest
 ├── data/                      # Artefak dataset praproses (A1) & matriks fitur (A2)
 │   ├── ck_preprocessed.npz    # [A1] Citra praproses CK+ (981, 128, 128)
@@ -40,11 +41,25 @@ Citra wajah (CK+ / JAFFE)
 │   ├── features.py            # Modul fungsional (swt_haar_level1, phog, extract_features)
 │   └── A2-feature-extraction.ipynb # Notebook eksekusi, visualisasi, assert, statistik
 ├── reports/
+│   ├── baseline_summary.csv   # [A3] Tabel ringkasan hasil baseline 5-fold CV
+│   ├── baseline_ck_results.json
+│   ├── baseline_jaffe_results.json
 │   └── figures/
-│       └── phog_levels_visualization.png # Visualisasi piramida spasial PHOG
+│       ├── phog_levels_visualization.png
+│       ├── baseline_confusion_matrix_ck.png   # [A3] Confusion matrix baseline CK+
+│       ├── baseline_confusion_matrix_jaffe.png# [A3] Confusion matrix baseline JAFFE
+│       └── lssvm_toy_xor_iris.png             # [A3] Visualisasi batas keputusan LS-SVM
 ├── tests/
-│   └── test_features.py       # Unit test suite verifikasi dimensi & integritas fitur
+│   ├── test_features.py       # [A2] Unit test suite fitur
+│   ├── test_baseline.py       # [A3] Unit test suite baseline LDA + SVM-RBF
+│   └── test_lssvm.py          # [A3] Unit test suite LS-SVM (KKT, XOR, Iris)
 └── model-experiment/
+    ├── __init__.py
+    ├── lssvm.py               # [A3] Implementasi modul LS-SVM biner (KKT solver)
+    ├── baseline.py            # [A3] Pipeline baseline LDA + SVM-RBF & metrik Sen/Spe/Acc
+    ├── evaluate_baseline.py   # [A3] Skrip eksekusi evaluasi baseline & ekspor laporan
+    ├── visualize_toy_datasets.py # [A3] Visualisasi batas keputusan pada data mainan
+    ├── A3-model-experiment.ipynb # [A3] Notebook eksperimen model Minggu 12
     └── LS-SVM.ipynb           # [A1] notebook praproses dataset
 ```
 
@@ -183,6 +198,51 @@ y_jaffe = jaffe_feat['y']       # (213,) int8
 ### Menjalankan Unit Test
 ```powershell
 pytest -v
+```
+
+## A3 — Model & Optimasi (Minggu 12)
+
+Implementasi tahap **Minggu 12** berfokus pada setup konfigurasi terpusat, evaluasi **Baseline Model (LDA + SVM-RBF)** menggunakan scikit-learn pada fitur hybrid 680-D, derivasi dan implementasi prototipe **Least Squares SVM (LS-SVM)** biner, serta pengujian paritas pada dataset mainan (**XOR** dan **Iris**).
+
+### 1. Konfigurasi Terpusat (`config.yaml`)
+Seluruh parameter sistem (path dataset, cross-validation, hyperparameter LDA, SVM, LS-SVM, serta random seed) disentralisasi di `config.yaml` untuk memenuhi kriteria Definition of Done (tidak ada *hardcoding* parameter).
+
+### 2. Hasil Baseline Model (LDA + SVM-RBF, 5-Fold Stratified CV)
+Evaluasi baseline dilakukan secara ketat dengan 5-fold stratified cross-validation pada fold training saja untuk mencegah *data leakage*:
+
+| Dataset | Sampel | Fitur | Mean Accuracy (%) | Std Acc (%) | Macro Sensitivity (%) | Macro Specificity (%) |
+|---------|--------|-------|-------------------|-------------|-----------------------|-----------------------|
+| **CK+** | 981 | 680 | **97.66%** | ±1.00% | 97.49% | 99.59% |
+| **JAFFE** | 213 | 680 | **81.27%** | ±8.37% | 81.15% | 96.87% |
+
+Artefak hasil baseline:
+- Ringkasan tabel: `reports/baseline_summary.csv`
+- Detail metrik & confusion matrix: `reports/baseline_ck_results.json` dan `reports/baseline_jaffe_results.json`
+- Plot confusion matrix: `reports/figures/baseline_confusion_matrix_ck.png` dan `reports/figures/baseline_confusion_matrix_jaffe.png`
+
+### 3. Prototipe LS-SVM Biner (`model-experiment/lssvm.py`)
+LS-SVM (Suykens & Vandewalle, 1999) mengonversi persoalan quadratic programming (QP) SVM standar menjadi sistem persamaan linear Karush-Kuhn-Tucker (KKT):
+
+$$\begin{bmatrix} 0 & y^T \\ y & \Omega + \left(\gamma^{-1} + \epsilon\right) I_N \end{bmatrix} \begin{bmatrix} b \\ \alpha \end{bmatrix} = \begin{bmatrix} 0 \\ \mathbf{1}_N \end{bmatrix}$$
+
+- **Kernel RBF**: $K(x, z) = \exp\left(-\frac{\|x - z\|^2}{2\sigma^2}\right)$
+- Solusi matriks diselesaikan secara eksak menggunakan `scipy.linalg.solve(assume_a='sym')` dengan verifikasi residual aljabar linear $\|A \cdot \text{sol} - B\| < 10^{-5}$.
+
+### 4. Verifikasi pada Dataset Mainan (Toy Datasets)
+- **Problem Non-Linear XOR**: LS-SVM biner dengan kernel RBF mencapai akurasi **98.0%** pada clean XOR dan **>95%** pada noisy XOR, membuktikan kemampuan memisahkan ruang non-linear.
+- **Dataset Iris (Setosa vs Versicolor)**: LS-SVM biner mencapai akurasi **100%**, identik dengan performa `sklearn.svm.SVC(kernel='rbf')` (paritas sempurna).
+- Visualisasi batas keputusan: `reports/figures/lssvm_toy_xor_iris.png`.
+
+### Menjalankan Eksperimen & Test Suite
+```powershell
+# Jalankan seluruh unit test suite (16 test lulus 100%)
+pytest -v
+
+# Jalankan evaluasi baseline & ekspor laporan
+python model-experiment/evaluate_baseline.py
+
+# Buat visualisasi batas keputusan pada data mainan
+python model-experiment/visualize_toy_datasets.py
 ```
 
 ## Konvensi Kontribusi (Tim)

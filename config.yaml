@@ -1,0 +1,67 @@
+# Konfigurasi Eksperimen TA-PCVK (Facial Expression Recognition)
+# Referensi: Kar et al. (2021) - Hybrid Feature Descriptor with Jaya-LSSVM
+
+project:
+  name: "TA-PCVK"
+  description: "Facial Expression Recognition using SWT-PHOG + LDA + Jaya-LSSVM"
+  random_seed: 42
+
+paths:
+  data_dir: "data"
+  reports_dir: "reports"
+  figures_dir: "reports/figures"
+  ck_preprocessed: "data/ck_preprocessed.npz"
+  jaffe_preprocessed: "data/jaffe_preprocessed.npz"
+  ck_features: "data/ck_features.npz"
+  jaffe_features: "data/jaffe_features.npz"
+
+dataset:
+  ck:
+    name: "CK+"
+    num_classes: 7
+    class_names: ["anger", "contempt", "disgust", "fear", "happy", "sadness", "surprise"]
+  jaffe:
+    name: "JAFFE"
+    num_classes: 7
+    class_names: ["anger", "disgust", "fear", "happy", "neutral", "sadness", "surprise"]
+
+cross_validation:
+  n_splits: 5
+  shuffle: true
+  random_state: 42
+  stratified: true
+
+feature_engineering:
+  wavelet: "haar"
+  wavelet_level: 1
+  phog:
+    pyramid_levels: 3
+    num_bins: 8
+    angle_range: [0, 360]
+    norm: "per_level"
+    total_dimension: 680
+
+lda:
+  solver: "svd"
+  n_components: null  # min(n_classes - 1, n_features) = 6 komponen untuk 7 kelas
+
+baseline_svm:
+  kernel: "rbf"
+  C: 10.0
+  gamma: "scale"
+
+lssvm:
+  gamma: 10.0         # Parameter regularisasi LS-SVM
+  sigma: 1.0          # Bandwidth kernel RBF (K(x, z) = exp(-||x-z||^2 / (2*sigma^2)))
+  kernel: "rbf"
+  ridge_jitter: 1.0e-8
+
+toy_datasets:
+  xor:
+    n_samples: 200
+    noise: 0.1
+    random_state: 42
+  iris:
+    classes: [0, 1]   # Setosa vs Versicolor (klasifikasi biner)
+    test_size: 0.3
+    random_state: 42
