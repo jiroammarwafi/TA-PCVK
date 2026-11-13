@@ -9,7 +9,8 @@ Referensi:
   IET Image Processing, 15(7), 1471-1483.
 """
 
-from typing import Optional, Union, Tuple
+from itertools import combinations
+from typing import Optional, Union, Tuple, Dict, List, Any
 import numpy as np
 from scipy.spatial.distance import cdist
 from scipy.linalg import solve, LinAlgError, lstsq
@@ -210,3 +211,131 @@ class LSSVMClassifier(BaseEstimator, ClassifierMixin):
         """Menghitung akurasi prediksi pada data (X, y)."""
         y_pred = self.predict(X)
         return float(np.mean(y_pred == y))
+
+
+class OneVsOneLSSVMClassifier(BaseEstimator, ClassifierMixin):
+    """
+    Multiclass Least Squares Support Vector Machine (LS-SVM) dengan strategi One-vs-One (OvO).
+
+    Untuk K kelas, dibangun K * (K - 1) / 2 classifier biner LS-SVM.
+    Setiap sampel diprediksi berdasarkan suara terbanyak (majority voting)
+    dengan pemutus seri (tie-breaking) menggunakan akumulasi skor fungsi keputusan (confidence margin).
+
+    Parameters
+    ----------
+    gamma : float, default=10.0
+        Parameter regularisasi LS-SVM.
+    sigma : float, default=1.0
+        Bandwidth kernel RBF.
+    kernel : str, default='rbf'
+        Jenis kernel: 'rbf' atau 'linear'.
+    ridge_jitter : float, default=1e-8
+        Stabilisasi numerik diagonal sistem KKT.
+    """
+
+    def __init__(
+        self,
+        gamma: float = 10.0,
+        sigma: float = 1.0,
+        kernel: str = "rbf",
+        ridge_jitter: float = 1e-8,
+    ):
+        self.gamma = gamma
+        self.sigma = sigma
+        self.kernel = kernel
+        self.ridge_jitter = ridge_jitter
+
+    def fit(self, X: np.ndarray, y: np.ndarray) -> "OneVsOneLSSVMClassifier":
+        """
+        Melatih K*(K-1)/2 classifier biner LS-SVM untuk setiap pasangan kelas.
+        """
+        X = np.asarray(X, dtype=np.float64)
+        y = np.asarray(y)
+
+        self.classes_ = np.unique(y)
+        n_classes = len(self.classes_)
+        if n_classes < 2:
+            raise ValueError(f"Dibutuhkan minimal 2 kelas, ditemukan {n_classes}")
+
+        self.classifiers_: Dict[Tuple[Any, Any], LSSVMClassifier] = {}
+        self.pairs_: List[Tuple[Any, Any]] = list(combinations(self.classes_, 2))
+
+        for c1, c2 in self.pairs_:
+            mask = (y == c1) | (y == c2)
+            X_sub = X[mask]
+            y_sub = y[mask]
+
+            clf = LSSVMClassifier(
+                gamma=self.gamma,
+                sigma=self.sigma,
+                kernel=self.kernel,
+                ridge_jitter=self.ridge_jitter,
+            )
+            clf.fit(X_sub, y_sub)
+            self.classifiers_[(c1, c2)] = clf
+
+        return self
+
+    def decision_function(self, X: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Menghitung matriks suara (votes) dan akumulasi skor keputusan kontinu (scores).
+
+        Returns
+        -------
+        votes : ndarray berukuran (M, K)
+        scores : ndarray berukuran (M, K)
+        """
+        if not hasattr(self, "classifiers_"):
+            raise RuntimeError("Model belum dilatih. Panggil fit() terlebih dahulu.")
+
+        X = np.asarray(X, dtype=np.float64)
+        M = X.shape[0]
+        K = len(self.classes_)
+        class_to_idx = {c: i for i, c in enumerate(self.classes_)}
+
+        scores = np.zeros((M, K), dtype=np.float64)
+        votes = np.zeros((M, K), dtype=np.float64)
+
+        for (c1, c2), clf in self.classifiers_.items():
+            idx1 = class_to_idx[c1]
+            idx2 = class_to_idx[c2]
+
+            df = clf.decision_function(X)
+            # clf.classes_[0] adalah c1, clf.classes_[1] adalah c2
+            is_c2 = df >= 0.0
+            votes[:, idx2] += is_c2.astype(np.float64)
+            votes[:, idx1] += (~is_c2).astype(np.float64)
+
+            scores[:, idx2] += df
+            scores[:, idx1] -= df
+
+        return votes, scores
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """
+        Memprediksi kelas dengan majority voting dan tie-breaking confidence margin.
+        """
+        votes, scores = self.decision_function(X)
+        M = X.shape[0]
+        predictions = []
+
+        for i in range(M):
+            max_vote = np.max(votes[i])
+            candidates = np.where(votes[i] == max_vote)[0]
+            if len(candidates) == 1:
+                best_class_idx = candidates[0]
+            else:
+                # Tie-breaking
+                best_class_idx = candidates[np.argmax(scores[i, candidates])]
+            predictions.append(self.classes_[best_class_idx])
+
+        return np.array(predictions)
+
+    def score(self, X: np.ndarray, y: np.ndarray) -> float:
+        """Menghitung akurasi prediksi multiclass."""
+        y_pred = self.predict(X)
+        return float(np.mean(y_pred == y))
+
+
+# Alias kelas untuk kemudahan integrasi
+MulticlassLSSVM = OneVsOneLSSVMClassifier
