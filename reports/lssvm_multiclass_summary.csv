@@ -1,0 +1,3 @@
+Dataset,Samples,Model,Mean Accuracy (%),Std Accuracy (%),Macro Sensitivity (%),Macro Specificity (%)
+CK+,981,LDA + OvO LS-SVM (Grid Search),96.64,0.94,97.02,99.44
+JAFFE,213,LDA + OvO LS-SVM (Grid Search),79.36,7.52,79.28,96.56
