@@ -15,7 +15,7 @@ from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
 
-from lssvm import LSSVMClassifier
+from lssvm import LSSVMClassifier, OneVsOneLSSVMClassifier, MulticlassLSSVM
 
 
 def generate_xor_dataset(n_samples: int = 200, noise: float = 0.05, seed: int = 42):
@@ -167,3 +167,51 @@ def test_lssvm_invalid_inputs():
     with pytest.raises(ValueError, match="sigma"):
         bad_sigma = LSSVMClassifier(sigma=-1.0)
         bad_sigma.fit(X[:20], np.array([0] * 10 + [1] * 10))
+
+
+def test_multiclass_lssvm_iris_3_classes():
+    """Memverifikasi One-vs-One LS-SVM multiclass pada dataset Iris lengkap (3 kelas)."""
+    iris = load_iris()
+    X = iris.data
+    y = iris.target
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.3, random_state=42, stratify=y
+    )
+
+    clf = OneVsOneLSSVMClassifier(gamma=10.0, sigma=1.0, kernel="rbf")
+    clf.fit(X_train, y_train)
+
+    assert len(clf.classes_) == 3
+    assert len(clf.classifiers_) == 3  # 3 * 2 / 2 = 3 pasangan
+
+    train_acc = clf.score(X_train, y_train)
+    test_acc = clf.score(X_test, y_test)
+
+    assert train_acc >= 0.95, f"Train acc Iris 3-kelas harus >= 0.95, didapat {train_acc}"
+    assert test_acc >= 0.93, f"Test acc Iris 3-kelas harus >= 0.93, didapat {test_acc}"
+
+
+def test_multiclass_lssvm_7_classes_synthetic():
+    """Memverifikasi One-vs-One LS-SVM pada 7 kelas (menghasilkan 21 classifier biner)."""
+    from sklearn.datasets import make_blobs
+
+    X, y = make_blobs(
+        n_samples=140,
+        n_features=6,
+        centers=7,
+        cluster_std=0.8,
+        random_state=42,
+    )
+
+    clf = MulticlassLSSVM(gamma=10.0, sigma=1.0, kernel="rbf")
+    clf.fit(X, y)
+
+    assert len(clf.classes_) == 7
+    # C(7, 2) = 7 * 6 / 2 = 21 classifier biner
+    assert len(clf.classifiers_) == 21
+
+    y_pred = clf.predict(X)
+    assert y_pred.shape == (140,)
+    assert clf.score(X, y) >= 0.90
+
