@@ -31,7 +31,29 @@ def load_config(config_path: Union[str, Path] = "config.yaml") -> Dict[str, Any]
 
     with open(path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
+    # Simpan lokasi config agar modul lain dapat meresolusi path relatif
+    # terhadap root repo, bukan terhadap CWD pemanggil.
+    config["_config_path"] = str(path.resolve())
     return config
+
+
+def resolve_path(config: Dict[str, Any], value: Union[str, Path]) -> Path:
+    """
+    Ubah path pada config menjadi absolut terhadap root repo.
+
+    Path pada config.yaml relatif terhadap root repo, bukan terhadap CWD
+    pemanggil. Dengan begitu modul tetap benar meski dijalankan dari
+    subdirektori mana pun.
+    """
+    p = Path(str(value))
+    if p.is_absolute():
+        return p
+    if p.exists():
+        return p
+    root = config.get("_config_path")
+    if root:
+        return Path(str(root)).resolve().parent / p
+    return p
 
 
 def compute_class_metrics(
@@ -104,12 +126,9 @@ def run_baseline_evaluation(
     if config is None:
         config = load_config()
 
-    features_path = Path(features_npz_path)
+    features_path = resolve_path(config, features_npz_path)
     if not features_path.exists():
-        if (Path("..") / features_npz_path).exists():
-            features_path = Path("..") / features_npz_path
-        else:
-            raise FileNotFoundError(f"File fitur {features_npz_path} tidak ditemukan.")
+        raise FileNotFoundError(f"File fitur {features_npz_path} tidak ditemukan.")
 
     data = np.load(features_path)
     X = data["F"]

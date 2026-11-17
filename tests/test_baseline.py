@@ -8,7 +8,7 @@ Memverifikasi:
 from pathlib import Path
 import numpy as np
 import pytest
-from baseline import compute_class_metrics, run_baseline_evaluation, load_config
+from baseline import compute_class_metrics, run_baseline_evaluation, load_config, resolve_path
 
 
 def test_compute_class_metrics_perfect():
@@ -43,13 +43,13 @@ def test_compute_class_metrics_known_cm():
 def test_baseline_evaluation_jaffe():
     """
     Memverifikasi pipeline evaluasi baseline 5-fold CV berjalan dengan benar
-    pada artefak fitur JAFFE (data/jaffe_features.npz).
+    pada artefak fitur JAFFE (data/a2-features/jaffe_features.npz).
     """
-    jaffe_path = Path("data/jaffe_features.npz")
-    if not jaffe_path.exists():
-        pytest.skip("data/jaffe_features.npz belum tersedia")
-
     config = load_config()
+    jaffe_path = resolve_path(config, config["paths"]["jaffe_features"])
+    if not jaffe_path.exists():
+        pytest.skip(f"{jaffe_path} belum tersedia")
+
     res = run_baseline_evaluation(jaffe_path, config=config)
 
     assert res["num_samples"] == 213

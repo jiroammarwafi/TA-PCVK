@@ -1,5 +1,5 @@
 {
-  "dataset_path": "data\\jaffe_features.npz",
+  "dataset_path": "data\\a2-features\\jaffe_features.npz",
   "num_samples": 213,
   "num_features": 680,
   "class_names": [

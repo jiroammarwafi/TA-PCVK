@@ -1,5 +1,5 @@
 {
-  "dataset_path": "data\\ck_features.npz",
+  "dataset_path": "data\\a2-features\\ck_features.npz",
   "num_samples": 981,
   "num_features": 680,
   "class_names": [
@@ -22,7 +22,7 @@
   "mean_accuracy": 0.9765565109292448,
   "std_accuracy": 0.009992763618685079,
   "macro_sensitivity": 0.9748863486168619,
-  "macro_specificity": 0.9958832710261482,
+  "macro_specificity": 0.9958920921686625,
   "per_class_sensitivity": [
     1.0,
     0.9444444444444444,
@@ -33,9 +33,9 @@
     0.9518072289156626
   ],
   "per_class_specificity": [
-    0.9964539007092199,
+    0.9952718676122931,
     1.0,
-    0.9875621890547264,
+    0.9888059701492538,
     1.0,
     0.9987080103359173,
     0.9966555183946488,
@@ -52,9 +52,9 @@
       0
     ],
     [
-      0,
+      1,
       51,
-      3,
+      2,
       0,
       0,
       0,
