@@ -64,7 +64,8 @@ def plot_decision_boundary(clf, X, y, title, ax):
 
 
 def main():
-    figures_dir = Path("reports/figures")
+    # Visualisasi disimpan ke folder laporan A3 (bukan reports/figures lama).
+    figures_dir = Path(__file__).resolve().parents[2] / "reports" / "a3-models" / "figures"
     figures_dir.mkdir(parents=True, exist_ok=True)
 
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))

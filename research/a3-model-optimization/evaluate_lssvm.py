@@ -21,7 +21,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import accuracy_score
 
-from baseline import load_config, compute_class_metrics
+from baseline import load_config, compute_class_metrics, resolve_path
 from lssvm import OneVsOneLSSVMClassifier
 
 
@@ -79,12 +79,9 @@ def run_lssvm_multiclass_evaluation(
     Menjalankan 5-fold Stratified CV untuk pipeline LDA + Multiclass LS-SVM (OvO)
     dengan Grid Search pada setiap fold.
     """
-    path = Path(features_npz_path)
+    path = resolve_path(config, features_npz_path)
     if not path.exists():
-        if (Path("..") / features_npz_path).exists():
-            path = Path("..") / features_npz_path
-        else:
-            raise FileNotFoundError(f"File {features_npz_path} tidak ditemukan.")
+        raise FileNotFoundError(f"File {features_npz_path} tidak ditemukan.")
 
     data = np.load(path)
     X = data["F"]
@@ -157,7 +154,7 @@ def run_lssvm_multiclass_evaluation(
         y_pred_all.extend(y_pred.tolist())
 
         print(
-            f"  Fold {fold_idx+1}/{n_splits} -> Best params (γ={b_gamma}, σ={b_sigma}) -> Acc: {acc*100:.2f}%"
+            f"  Fold {fold_idx+1}/{n_splits} -> Best params (gamma={b_gamma}, sigma={b_sigma}) -> Acc: {acc*100:.2f}%"
         )
 
     y_true_arr = np.array(y_true_all)
@@ -225,15 +222,17 @@ def plot_confusion_matrix(cm, class_names, title, output_path):
 
 def main():
     config = load_config()
-    reports_dir = Path(config["paths"]["reports_dir"])
-    figures_dir = Path(config["paths"]["figures_dir"])
+    reports_dir = resolve_path(
+        config, config["paths"].get("a3_reports_dir", config["paths"]["reports_dir"])
+    )
+    figures_dir = resolve_path(config, config["paths"]["figures_dir"])
     reports_dir.mkdir(parents=True, exist_ok=True)
     figures_dir.mkdir(parents=True, exist_ok=True)
 
     summary_rows = []
 
     # 1. Dataset CK+
-    ck_path = Path(config["paths"]["ck_features"])
+    ck_path = resolve_path(config, config["paths"]["ck_features"])
     if ck_path.exists():
         print(f"\n[INFO] Menjalankan 5-fold CV LS-SVM OvO Grid Search pada CK+...")
         res_ck = run_lssvm_multiclass_evaluation(str(ck_path), config=config)
@@ -264,7 +263,7 @@ def main():
         )
 
     # 2. Dataset JAFFE
-    jaffe_path = Path(config["paths"]["jaffe_features"])
+    jaffe_path = resolve_path(config, config["paths"]["jaffe_features"])
     if jaffe_path.exists():
         print(f"\n[INFO] Menjalankan 5-fold CV LS-SVM OvO Grid Search pada JAFFE...")
         res_jaffe = run_lssvm_multiclass_evaluation(str(jaffe_path), config=config)

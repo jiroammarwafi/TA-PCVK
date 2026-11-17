@@ -10,7 +10,7 @@ Mengenali **7 kelas ekspresi wajah** dari dataset **CK+** dan **JAFFE** mengguna
 
 | Kode | Bagian | Cakupan | Status |
 |------|--------|---------|--------|
-| **A1** | Data & Praproses | Loading dataset (CK+ & JAFFE), EDA, grayscale → resize 128×128 → histogram equalization, artefak `.npz` | ✅ Selesai |
+| **A1** | Data & Praproses | Loading dataset (CK+ & JAFFE), EDA, grayscale → resize 128×128 → histogram equalization, artefak `.npz`, **noise Gaussian (Minggu 14)**, **evaluasi subject-independent (Minggu 14)** | ✅ Selesai |
 | **A2** | Feature Engineering | SWT Haar level-1 → PHOG pada subband A1 (LL), ekspor fitur 680-D | ✅ Selesai |
 | **A3** | Model & Optimasi | Seleksi fitur LDA → classifier Jaya-LSSVM → evaluasi 5-fold stratified CV | ✅ Minggu 12 & 13 Selesai (Minggu 14 On Progress) |
 | **A4** | Web & Integrasi | Website penyajian sistem dan hasil | ⏳ Belum dimulai |
@@ -25,50 +25,74 @@ Citra wajah (CK+ / JAFFE)
 
 ## Struktur Repository
 
+Struktur dipisah **per divisi**: kode `.py` di `research/a{1,2,3}-*/`, seluruh
+**notebook** di `research/pipeline/`, dan `app/` disiapkan untuk A4.
+
 ```
 .
-├── README.md
+├── README.md                  # Dokumentasi utama
+├── konteks.md                 # Ringkasan 1 halaman untuk onboarding
 ├── config.yaml                # Konfigurasi parameter terpusat (DoD A3)
 ├── requirements.txt           # Dependensi Python
 ├── pytest.ini                 # Konfigurasi test runner pytest
-├── data/                      # Artefak dataset praproses (A1) & matriks fitur (A2)
-│   ├── ck_preprocessed.npz    # [A1] Citra praproses CK+ (981, 128, 128)
-│   ├── jaffe_preprocessed.npz # [A1] Citra praproses JAFFE (213, 128, 128)
-│   ├── ck_features.npz        # [A2] Matriks fitur CK+ (981, 680) float32
-│   └── jaffe_features.npz     # [A2] Matriks fitur JAFFE (213, 680) float32
-├── feature-engineering/       # [A2] Kode modular & eksperimen ekstraksi fitur
-│   ├── __init__.py
-│   ├── features.py            # Modul fungsional (swt_haar_level1, phog, extract_features)
-│   └── A2-feature-extraction.ipynb # Notebook eksekusi, visualisasi, assert, statistik
-├── reports/
-│   ├── baseline_summary.csv   # [A3] Tabel ringkasan hasil baseline SVM 5-fold CV
-│   ├── baseline_ck_results.json
-│   ├── baseline_jaffe_results.json
-│   ├── lssvm_multiclass_summary.csv # [A3] Tabel ringkasan hasil LS-SVM multiclass v0
-│   ├── lssvm_multiclass_ck_results.json
-│   ├── lssvm_multiclass_jaffe_results.json
-│   └── figures/
-│       ├── phog_levels_visualization.png
-│       ├── baseline_confusion_matrix_ck.png   # [A3] Confusion matrix baseline CK+
-│       ├── baseline_confusion_matrix_jaffe.png# [A3] Confusion matrix baseline JAFFE
-│       ├── lssvm_confusion_matrix_ck.png      # [A3] Confusion matrix LS-SVM OvO CK+
-│       ├── lssvm_confusion_matrix_jaffe.png   # [A3] Confusion matrix LS-SVM OvO JAFFE
-│       └── lssvm_toy_xor_iris.png             # [A3] Visualisasi batas keputusan LS-SVM
-├── tests/
-│   ├── test_features.py       # [A2] Unit test suite fitur
-│   ├── test_baseline.py       # [A3] Unit test suite baseline LDA + SVM-RBF
-│   └── test_lssvm.py          # [A3] Unit test suite LS-SVM (biner & multiclass OvO)
-└── model-experiment/
-    ├── __init__.py
-    ├── lssvm.py               # [A3] Modul LS-SVM (biner & One-vs-One multiclass)
-    ├── baseline.py            # [A3] Pipeline baseline LDA + SVM-RBF & metrik
-    ├── evaluate_baseline.py   # [A3] Skrip eksekusi baseline SVM & ekspor laporan
-    ├── evaluate_lssvm.py      # [A3] Skrip eksekusi LS-SVM OvO Grid Search (Minggu 13)
-    ├── visualize_toy_datasets.py # [A3] Visualisasi batas keputusan pada data mainan
-    ├── A3-model-experiment.ipynb # [A3] Notebook eksperimen model Minggu 12
-    ├── A3-minggu13-multiclass-lssvm.ipynb # [A3] Notebook eksperimen model Minggu 13
-    └── LS-SVM.ipynb           # [A1] notebook praproses dataset
+├── run.ps1                    # Runner: test / pipeline / noise / split / report / check
+│
+├── research/                  # SEMUA kode penelitian (A1–A3)
+│   ├── a1-data-preprocessing/
+│   │   ├── noise.py                        # [A1] Artefak citra ber-noise Gaussian
+│   │   └── evaluate_subject_independent.py # [A1] Split acak vs per-subjek
+│   ├── a2-feature-engineering/
+│   │   ├── __init__.py
+│   │   └── features.py                     # [A2] SWT Haar + PHOG (680-D)
+│   ├── a3-model-optimization/
+│   │   ├── __init__.py
+│   │   ├── lssvm.py                        # [A3] LS-SVM biner + One-vs-One
+│   │   ├── baseline.py                     # [A3] LDA + SVM-RBF & metrik
+│   │   ├── evaluate_baseline.py            # [A3] Runner baseline
+│   │   ├── evaluate_lssvm.py               # [A3] Runner LS-SVM OvO + grid search
+│   │   └── visualize_toy_datasets.py       # [A3] Batas keputusan XOR/Iris
+│   └── pipeline/                           # SEMUA notebook
+│       ├── 00-pipeline-lengkap.ipynb        # A1 → A2 → A3 dalam satu alur
+│       ├── 01-a1-preprocessing.ipynb        # [A1] praproses dataset
+│       ├── 02-a2-feature-extraction.ipynb   # [A2] ekstraksi fitur
+│       ├── 03-a3-baseline-dan-lssvm-biner.ipynb   # [A3] Minggu 12
+│       ├── 04-a3-multiclass-lssvm-ovo.ipynb       # [A3] Minggu 13
+│       └── 05-a1-noise-dan-subject-independent.ipynb  # [A1] Minggu 14
+│
+├── data/                      # Artefak biner, dipisah per divisi
+│   ├── a1-preprocessing/      # [A1] ck/jaffe_preprocessed.npz (128×128 uint8)
+│   ├── a1-noise/              # [A1] *_noise_v{0.01..0.10}.npz (gitignored)
+│   └── a2-features/           # [A2] ck/jaffe_features.npz (680-D float32)
+│
+├── reports/                   # Hasil, dipisah per divisi
+│   ├── a1-subject-independent/   # subject_independent_{summary.csv,ck,jaffe}.json
+│   ├── a2-features/              # phog_levels_visualization.png
+│   └── a3-models/
+│       ├── baseline_{summary.csv,ck_results.json,jaffe_results.json}
+│       ├── lssvm_multiclass_{summary.csv,ck_results.json,jaffe_results.json}
+│       └── figures/              # 5 confusion matrix & visualisasi toy
+│
+├── docs/                      # Dokumentasi
+│   ├── arsitektur.md          # diagram alur & pembagian tanggung jawab
+│   ├── metodologi.md          # praproses, fitur, LS-SVM, protokol evaluasi
+│   ├── hasil.md               # ringkasan semua angka + interpretasi
+│   └── referensi/             # PDF jurnal
+│
+├── tests/                     # 41 unit test (semua divisi)
+│   ├── test_features.py          # [A2]
+│   ├── test_baseline.py          # [A3]
+│   ├── test_lssvm.py             # [A3]
+│   ├── test_noise.py             # [A1]
+│   └── test_subject_independent.py  # [A1]
+│
+├── scripts/
+│   └── check_env.py           # diagnosa DLL yang diblokir Application Control
+│
+└── app/                       # [A4] disiapkan, masih kosong (lihat app/README.md)
 ```
+
+> Notebook **tidak** menyalin logika: semuanya memanggil modul `.py` di
+> `research/`, sehingga perbaikan modul otomatis berlaku dan dapat diuji pytest.
 
 > Folder/kode tahap A2, A3, dan A4 akan ditambahkan oleh anggota masing-masing melalui feature branch sendiri.
 
@@ -113,12 +137,50 @@ pip install -r requirements.txt
 python -m ipykernel install --user --name ta-pcvk --display-name "Python 3.14 (TA-PCVK)"
 ```
 
-### Menjalankan Notebook A1
+### Quickstart dengan `run.ps1`
 
-1. Buka `model-experiment/LS-SVM.ipynb` di VS Code / Jupyter.
+Satu pintu untuk semua perintah umum:
+
+```powershell
+.\run.ps1 test        # seluruh unit test
+.\run.ps1 pipeline    # buka notebook pipeline lengkap
+.\run.ps1 noise       # bangun artefak citra ber-noise (A1)
+.\run.ps1 split       # evaluasi split acak vs subject-independent (A1)
+.\run.ps1 baseline    # evaluasi baseline LDA + SVM-RBF (A3)
+.\run.ps1 lssvm       # evaluasi LS-SVM OvO + grid search (A3)
+.\run.ps1 report      # tampilkan semua tabel hasil
+.\run.ps1 check       # diagnosa DLL yang diblokir Application Control
+.\run.ps1 clean       # hapus sisa duplikat setelah restrukturisasi
+```
+
+### Notebook: di mana semuanya berada
+
+Seluruh notebook ada di `research/pipeline/` dengan prefiks angka sesuai urutan
+eksekusi:
+
+| Notebook | Isi |
+|---|---|
+| `00-pipeline-lengkap.ipynb` | **A1 → A2 → A3 dalam satu alur** (flag `USE_CACHE`) |
+| `01-a1-preprocessing.ipynb` | praproses dataset → `*_preprocessed.npz` |
+| `02-a2-feature-extraction.ipynb` | SWT + PHOG → `*_features.npz` |
+| `03-a3-baseline-dan-lssvm-biner.ipynb` | baseline LDA+SVM-RBF & LS-SVM biner |
+| `04-a3-multiclass-lssvm-ovo.ipynb` | analisis hasil LS-SVM OvO |
+| `05-a1-noise-dan-subject-independent.ipynb` | noise Gaussian & split per-subjek |
+
+**`00-pipeline-lengkap.ipynb`** adalah pilihan tercepat untuk demo. Sel pertama
+berisi:
+
+```python
+USE_CACHE = True    # True  → ~1 menit (pakai artefak .npz yang ada)
+                    # False → ~40-70 menit (hitung ulang dari citra mentah)
+```
+
+### Menjalankan Notebook A1 (praproses)
+
+1. Buka `research/pipeline/01-a1-preprocessing.ipynb` di VS Code / Jupyter.
 2. Pilih kernel `.venv` (Python 3.14).
-3. Sesuaikan `DATASET_DIR` (sel ke-2) dengan lokasi dataset di komputer Anda.
-4. **Run All** → artefak praproses tertulis ulang ke `data/`.
+3. Dataset dicari otomatis di `../dataset`; override dengan env `FER_DATASET_DIR`.
+4. **Run All** → artefak tertulis ke `data/a1-preprocessing/`.
 
 ### Artefak Praproses (`.npz`) — Handoff ke A2
 
@@ -127,7 +189,7 @@ A2/A3 **tidak perlu menjalankan ulang notebook A1**; cukup muat artefaknya:
 ```python
 import numpy as np
 
-data = np.load("data/ck_preprocessed.npz")
+data = np.load("data/a1-preprocessing/ck_preprocessed.npz")
 X = data["X"]                                # (981, 128, 128) uint8
 y = data["y"]                                # (981,) int8
 subjects = data["subjects"]                  # (981,) str — kode subjek
@@ -151,6 +213,130 @@ Pemetaan label:
 2. **Resize 128×128** dengan interpolasi adaptif (`INTER_AREA` untuk downscaling, `INTER_CUBIC` untuk upscaling CK+ 48×48) — syarat vektor fitur PHOG berukuran tetap.
 3. **Histogram equalization** — normalisasi iluminasi/kontras agar fitur robust terhadap variasi pencahayaan.
 4. **Tanpa split train/test di A1** — jurnal memakai *5-fold stratified cross-validation*; pembagian fold dilakukan di tahap eksperimen A3 (`sklearn.model_selection.StratifiedKFold`).
+
+### Catatan Deviasi terhadap Jurnal
+
+Praproses di atas **tidak identik** dengan jurnal bagian 4.1. Perbedaan yang disengaja:
+
+| Tahap | Jurnal | Implementasi ini | Alasan |
+|---|---|---|---|
+| Normalisasi kontras | Saturasi 1% piksel atas & bawah (*contrast stretching*) | Histogram equalization | Keduanya menormalkan iluminasi; equalization dipilih agar artefak A1 sudah stabil dan tidak bergantung pada persentil per citra |
+| Deteksi wajah | Viola–Jones, lalu crop | Tidak ada (langsung resize) | Kedua dataset sudah berupa citra wajah ter-crop; `cv2.CascadeClassifier` juga dihapus pada OpenCV 5 |
+
+Konsekuensinya, **angka akurasi kita tidak dapat dibandingkan langsung dengan jurnal** — dan memang tidak diniatkan demikian. Jurnal hanya dipakai sebagai rujukan metode.
+
+### Catatan Sensitivitas Numerik Fitur
+
+Nilai fitur 680-D **tidak sepenuhnya bebas dari versi library**:
+
+| Komponen | Pengaruh |
+|---|---|
+| PyWavelets (SWT Haar) | perbedaan antarversi < 1e-12 → **tidak** berpengaruh |
+| OpenCV (Sobel 3×3) | gradien berbeda ~1e-13 antarversi, tetapi **binning orientasi PHOG mengamplifikasi** menjadi ~2e-3 pada vektor fitur |
+
+Akibatnya menghitung ulang fitur dengan versi OpenCV berbeda dapat menggeser
+akurasi sekitar **0,2–1 poin persen**. Karena itu:
+
+- `requirements.txt` mem-pin `opencv-python==5.0.0.93` agar hasil reprodusibel.
+- Notebook `02-a2-feature-extraction` **tidak menimpa** artefak `.npz` secara
+  default (`REGENERATE_FEATURES = False`). Artefak yang di-commit adalah acuan
+  angka pada laporan.
+- Bila artefak dihitung ulang, angka di `docs/hasil.md` dan README perlu
+  diperbarui.
+
+### Minggu 14 — Uji Ketahanan Noise Gaussian
+
+Jurnal bagian 5.5 menguji ketahanan model dengan noise Gaussian bervariansi 0,01–0,1. Modul `research/a1-data-preprocessing/noise.py` menyiapkan artefak citranya:
+
+```python
+from noise import add_gaussian_noise, build_noise_artifacts
+
+# noise ditambahkan pada ruang intensitas [0,1], lalu dikembalikan ke uint8
+noisy = add_gaussian_noise(images, variance=0.05, seed=42)
+
+# bangun seluruh artefak (CK+ & JAFFE × 4 variansi)
+build_noise_artifacts(config)
+```
+
+```powershell
+python research/a1-data-preprocessing/noise.py                       # semua dataset & variansi
+python research/a1-data-preprocessing/noise.py --variances 0.01 0.1  # variansi tertentu
+python research/a1-data-preprocessing/noise.py --datasets jaffe --force
+```
+
+Artefak yang dihasilkan: `data/{ck,jaffe}_noise_v{0.01,0.02,0.05,0.10}.npz`.
+
+| Kunci | Shape | Keterangan |
+|---|---|---|
+| `X` | `(N, 128, 128)` `uint8` | Citra ber-noise (siap masuk `extract_features`) |
+| `y`, `subjects`, `class_names` | sama dengan A1 | Metadata tidak berubah |
+| `variance`, `seed` | skalar | Jejak parameter noise |
+
+**Handoff ke A2:** cukup `np.load(...)["X"]` lalu `extract_features(X)` — tidak perlu mengubah apa pun di modul fitur.
+
+Verifikasi statistik (CK+, 981 citra):
+
+| Variansi diminta | σ teori | σ empiris | Catatan |
+|---|---|---|---|
+| 0,01 | 0,1000 | 0,0936 | sedikit turun karena clipping di 0/1 |
+| 0,02 | 0,1414 | 0,1293 | |
+| 0,05 | 0,2236 | 0,1941 | |
+| 0,10 | 0,3162 | 0,2566 | clipping paling terasa |
+
+`variance=0` menghasilkan salinan **identik** (dipakai sebagai kontrol di unit test).
+
+**Angka jurnal (Tabel 14) sebagai rujukan** — bukan target replikasi:
+
+| Kondisi | CK+ Sen / Spe / Acc | JAFFE Sen / Spe / Acc |
+|---|---|---|
+| Tanpa noise | 94,08 / 99,51 / 98,38 | 95,23 / 99,61 / 98,99 |
+| Dengan noise (var 0,01–0,1) | 95,95 / 96,86 / **97,17** | 91,50 / 98,59 / **97,59** |
+
+> Perhatikan: pada jurnal, angka noise **CK+ = 97,17%** dan **JAFFE = 97,59%**. Keduanya berbeda; jangan tertukar.
+
+**Rujukan angka jurnal (Tabel 14)** — hanya sebagai pembanding, bukan target:
+
+| Kondisi | CK+ Sen/Spe/Acc | JAFFE Sen/Spe/Acc |
+|---|---|---|
+| Tanpa noise | 94,08 / 99,51 / 98,38 | 95,23 / 99,61 / 98,99 |
+| Dengan noise (var 0,01–0,1) | 95,95 / 96,86 / **97,17** | 91,50 / 98,59 / **97,59** |
+
+> Catatan: angka noise jurnal adalah **CK+ 97,17%** dan **JAFFE 97,59%**. Jangan tertukar — sebagian rangkuman sering salah menulis 97,17% sebagai angka JAFFE.
+
+### Minggu 14 — Evaluasi Subject-Independent
+
+CK+ memuat **3 frame berurutan per sekuens** dari subjek yang sama. Dengan `StratifiedKFold` biasa, frame se-subjek dapat masuk train *dan* test sekaligus sehingga akurasi terlihat lebih tinggi dari kemampuan generalisasi sebenarnya.
+
+`research/a1-data-preprocessing/evaluate_subject_independent.py` menjalankan **dua protokol pada pipeline identik** (LDA → StandardScaler → OvO LS-SVM + grid search internal):
+
+```powershell
+python research/a1-data-preprocessing/evaluate_subject_independent.py
+```
+
+- `random`  → `StratifiedKFold` (protokol A3 saat ini)
+- `subject` → `StratifiedGroupKFold(groups=subjects)` — seluruh citra satu subjek hanya di satu sisi
+
+Skrip melakukan **assert** bahwa tidak ada subjek yang muncul di train dan test sekaligus, lalu melaporkan selisih akurasi antar kedua protokol.
+
+Artefak: `reports/subject_independent_{ck,jaffe}.json` dan `reports/subject_independent_summary.csv`.
+
+**Hasil (pipeline LDA → StandardScaler → OvO LS-SVM, 5-fold):**
+
+| Dataset | Split | Akurasi (%) | Std (%) | Macro Sen (%) | Macro Spe (%) |
+|---|---|---|---|---|---|
+| CK+ | random (acak) | **96,64** | 0,94 | 97,02 | 99,44 |
+| CK+ | **subject** (per-subjek) | **48,21** | 4,23 | 45,71 | 91,44 |
+| JAFFE | random (acak) | **80,31** | 8,23 | 80,20 | 96,71 |
+| JAFFE | **subject** (per-subjek) | **38,22** | 10,54 | 38,59 | 89,76 |
+
+Selisih: **CK+ 48,43 poin persen**, **JAFFE 42,09 poin persen**.
+
+Temuan penting:
+
+1. Angka CK+ `random` = **96,64%** identik dengan hasil A3 Minggu 13 — mengonfirmasi implementasi ini konsisten dengan pipeline A3.
+2. Namun hampir **setengah** akurasi tersebut berasal dari kebocoran identitas: dengan subjek yang benar-benar terpisah, akurasi jatuh ke **48,21%**.
+3. Penyebabnya: CK+ berisi 3 frame berurutan per sekuens (327 sekuens), sehingga pada split acak frame se-subjek muncul di train *dan* test. JAFFE juga menunjukkan pola serupa karena setiap subjek menyumbang 7 ekspresi.
+4. Kesimpulan: untuk dataset dengan banyak citra per orang, **akurasi split acak tidak boleh dilaporkan sebagai kemampuan generalisasi**. Angka subject-independent inilah estimasi yang jujur.
 
 
 ## A2 — Feature Engineering
@@ -181,13 +367,13 @@ A3 **tidak perlu mengekstrak ulang fitur**; cukup muat artefak `.npz`:
 ```python
 import numpy as np
 
-ck_feat = np.load('data/ck_features.npz')
+ck_feat = np.load('data/a2-features/ck_features.npz')
 F_ck = ck_feat['F']             # (981, 680) float32
 y_ck = ck_feat['y']             # (981,) int8
 subjects_ck = ck_feat['subjects']
 classes_ck = ck_feat['class_names'].tolist()
 
-jaffe_feat = np.load('data/jaffe_features.npz')
+jaffe_feat = np.load('data/a2-features/jaffe_features.npz')
 F_jaffe = jaffe_feat['F']       # (213, 680) float32
 y_jaffe = jaffe_feat['y']       # (213,) int8
 ```
@@ -204,7 +390,7 @@ y_jaffe = jaffe_feat['y']       # (213,) int8
 
 ### Menjalankan Unit Test
 ```powershell
-pytest -v
+.\run.ps1 test
 ```
 
 ## A3 — Model & Optimasi (Minggu 12)
@@ -225,9 +411,9 @@ Evaluasi baseline dilakukan secara ketat dengan 5-fold stratified cross-validati
 Artefak hasil baseline:
 - Ringkasan tabel: `reports/baseline_summary.csv`
 - Detail metrik & confusion matrix: `reports/baseline_ck_results.json` dan `reports/baseline_jaffe_results.json`
-- Plot confusion matrix: `reports/figures/baseline_confusion_matrix_ck.png` dan `reports/figures/baseline_confusion_matrix_jaffe.png`
+- Plot confusion matrix: `reports/a3-models/figures/baseline_confusion_matrix_ck.png` dan `reports/a3-models/figures/baseline_confusion_matrix_jaffe.png`
 
-### 3. Prototipe LS-SVM Biner (`model-experiment/lssvm.py`)
+### 3. Prototipe LS-SVM Biner (`research/a3-model-optimization/lssvm.py`)
 LS-SVM (Suykens & Vandewalle, 1999) mengonversi persoalan quadratic programming (QP) SVM standar menjadi sistem persamaan linear Karush-Kuhn-Tucker (KKT):
 
 $$\begin{bmatrix} 0 & y^T \\ y & \Omega + \left(\gamma^{-1} + \epsilon\right) I_N \end{bmatrix} \begin{bmatrix} b \\ \alpha \end{bmatrix} = \begin{bmatrix} 0 \\ \mathbf{1}_N \end{bmatrix}$$
@@ -238,24 +424,24 @@ $$\begin{bmatrix} 0 & y^T \\ y & \Omega + \left(\gamma^{-1} + \epsilon\right) I_
 ### 4. Verifikasi pada Dataset Mainan (Toy Datasets)
 - **Problem Non-Linear XOR**: LS-SVM biner dengan kernel RBF mencapai akurasi **98.0%** pada clean XOR dan **>95%** pada noisy XOR, membuktikan kemampuan memisahkan ruang non-linear.
 - **Dataset Iris (Setosa vs Versicolor)**: LS-SVM biner mencapai akurasi **100%**, identik dengan performa `sklearn.svm.SVC(kernel='rbf')` (paritas sempurna).
-- Visualisasi batas keputusan: `reports/figures/lssvm_toy_xor_iris.png`.
+- Visualisasi batas keputusan: `reports/a3-models/figures/lssvm_toy_xor_iris.png`.
 
 ### Menjalankan Eksperimen & Test Suite (Minggu 12)
 ```powershell
 # Jalankan seluruh unit test suite
-pytest -v
+.\run.ps1 test
 
 # Jalankan evaluasi baseline & ekspor laporan
-python model-experiment/evaluate_baseline.py
+python research/a3-model-optimization/evaluate_baseline.py
 
 # Buat visualisasi batas keputusan pada data mainan
-python model-experiment/visualize_toy_datasets.py
+python research/a3-model-optimization/visualize_toy_datasets.py
 ```
 
 ## A3 — Model & Optimasi (Minggu 13)
 
 Implementasi tahap **Minggu 13** berfokus pada:
-1. **LS-SVM Multiclass (One-vs-One / OvO)**: Mengembangkan kelas `OneVsOneLSSVMClassifier` (`MulticlassLSSVM`) di `model-experiment/lssvm.py`. Untuk 7 kelas ekspresi wajah, dibangun $7 \times 6 / 2 = 21$ classifier biner LS-SVM dengan strategi *majority voting* dan *confidence margin tie-breaking*.
+1. **LS-SVM Multiclass (One-vs-One / OvO)**: Mengembangkan kelas `OneVsOneLSSVMClassifier` (`MulticlassLSSVM`) di `research/a3-model-optimization/lssvm.py`. Untuk 7 kelas ekspresi wajah, dibangun $7 \times 6 / 2 = 21$ classifier biner LS-SVM dengan strategi *majority voting* dan *confidence margin tie-breaking*.
 2. **Evaluasi 5-Fold Stratified Cross-Validation dengan Grid Search Bersarang**:
    - Pipeline: **LDA ($680 \to 6$ komponen) $\to$ StandardScaler $\to$ OvO LS-SVM**.
    - Grid search internal 3-fold pada fold train untuk tuning hyperparameter $(\gamma, \sigma)$: $\gamma \in [1.0, 10.0, 50.0, 100.0, 500.0]$ dan $\sigma \in [1.0, 1.5, 2.0, 3.0, 5.0]$.
@@ -271,16 +457,16 @@ Implementasi tahap **Minggu 13** berfokus pada:
 Artefak hasil Minggu 13:
 - Ringkasan tabel: `reports/lssvm_multiclass_summary.csv`
 - Detail parameter per-fold & confusion matrix: `reports/lssvm_multiclass_ck_results.json` dan `reports/lssvm_multiclass_jaffe_results.json`
-- Plot confusion matrix: `reports/figures/lssvm_confusion_matrix_ck.png` dan `reports/figures/lssvm_confusion_matrix_jaffe.png`
-- Notebook eksekusi & analisis per kelas: `model-experiment/A3-minggu13-multiclass-lssvm.ipynb`
+- Plot confusion matrix: `reports/a3-models/figures/lssvm_confusion_matrix_ck.png` dan `reports/a3-models/figures/lssvm_confusion_matrix_jaffe.png`
+- Notebook eksekusi & analisis per kelas: `research/pipeline/04-a3-multiclass-lssvm-ovo.ipynb`
 
 ### Menjalankan Eksperimen & Test Suite (Minggu 13)
 ```powershell
-# Jalankan seluruh unit test suite (18 test lulus 100%)
-pytest -v
+# Jalankan seluruh unit test suite
+.\run.ps1 test
 
 # Jalankan evaluasi 5-fold CV LS-SVM OvO Grid Search pada CK+ dan JAFFE
-python model-experiment/evaluate_lssvm.py
+python research/a3-model-optimization/evaluate_lssvm.py
 ```
 
 ## Konvensi Kontribusi (Tim)
