@@ -9,11 +9,19 @@ project:
 paths:
   data_dir: "data"
   reports_dir: "reports"
-  figures_dir: "reports/figures"
-  ck_preprocessed: "data/ck_preprocessed.npz"
-  jaffe_preprocessed: "data/jaffe_preprocessed.npz"
-  ck_features: "data/ck_features.npz"
-  jaffe_features: "data/jaffe_features.npz"
+  # Artefak dipisah per divisi agar jelas siapa pemiliknya.
+  # A1 = praproses & noise; A2 = fitur; A3 = hasil model.
+  a1_preprocessing_dir: "data/a1-preprocessing"
+  a1_noise_dir: "data/a1-noise"
+  a2_features_dir: "data/a2-features"
+  a1_reports_dir: "reports/a1-subject-independent"
+  a2_reports_dir: "reports/a2-features"
+  a3_reports_dir: "reports/a3-models"
+  figures_dir: "reports/a3-models/figures"
+  ck_preprocessed: "data/a1-preprocessing/ck_preprocessed.npz"
+  jaffe_preprocessed: "data/a1-preprocessing/jaffe_preprocessed.npz"
+  ck_features: "data/a2-features/ck_features.npz"
+  jaffe_features: "data/a2-features/jaffe_features.npz"
 
 dataset:
   ck:
@@ -30,6 +38,10 @@ cross_validation:
   shuffle: true
   random_state: 42
   stratified: true
+  # Protokol pembanding (A1): 'random' = StratifiedKFold seperti A3,
+  # 'subject' = StratifiedGroupKFold dengan groups=subjects (tanpa kebocoran
+  # identitas). Dipakai oleh evaluate_subject_independent.py.
+  splits: ["random", "subject"]
 
 feature_engineering:
   wavelet: "haar"
@@ -60,6 +72,14 @@ grid_search:
   gamma_values: [1.0, 10.0, 50.0, 100.0, 500.0]
   sigma_values: [1.0, 1.5, 2.0, 3.0, 5.0]
   internal_cv_splits: 3
+
+# Uji ketahanan noise Gaussian (A1, mengikuti jurnal bagian 5.5).
+# Noise ditambahkan pada citra hasil praproses, lalu fitur diekstrak ulang (A2)
+# dan model dievaluasi ulang (A3).
+noise:
+  enabled: true
+  variances: [0.01, 0.02, 0.05, 0.1]   # rentang variansi pada jurnal
+  seed: 42                             # seed RNG agar reprodusibel
 
 toy_datasets:
   xor:
