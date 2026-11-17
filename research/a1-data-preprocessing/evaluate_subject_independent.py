@@ -340,10 +340,13 @@ def write_summary_csv(
 
     Dibuat terpisah agar menjalankan satu dataset saja (mis. ``--datasets jaffe``)
     tidak menghapus baris dataset lain yang sudah pernah dievaluasi.
-    """
-    import json
 
-    import pandas as pd
+    Memakai modul ``csv`` bawaan Python, bukan pandas: pada mesin dengan
+    kebijakan Application Control (WDAC/Device Guard) DLL ``pandas._libs._ujson``
+    dapat diblokir sehingga ``import pandas`` gagal total.
+    """
+    import csv
+    import json
 
     rows = []
     for path in sorted(Path(reports_dir).glob(f"{prefix}_*.json")):
@@ -370,9 +373,11 @@ def write_summary_csv(
     if not rows:
         return None
 
-    df = pd.DataFrame(rows)
     csv_path = Path(reports_dir) / f"{prefix}_summary.csv"
-    df.to_csv(csv_path, index=False)
+    with open(csv_path, "w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(rows)
     return csv_path
 
 

@@ -122,6 +122,30 @@ x_noisy = clip(x + N(0, variance), 0, 1) → uint8
 Variansi mengikuti jurnal: 0,01 / 0,02 / 0,05 / 0,10 (σ = 0,10–0,316).
 `variance=0` menghasilkan salinan identik (kontrol).
 
+### 5.4 Diagnosa kebocoran identitas (A1)
+
+Mengukur seberapa besar fitur 680-D memuat **identitas subjek**, bukan
+ekspresi. Tiga pengukuran pada `diagnose_identity.py`:
+
+| Pengukuran | Protokol split | Yang diukur |
+|---|---|---|
+| `subject_identification` | **acak** (`StratifiedKFold`) | kemampuan menebak *siapa* orangnya dari fitur |
+| `raw_features` | per subjek (`StratifiedGroupKFold`) | akurasi emosi pada fitur mentah, tanpa LDA |
+| `lda_nested` | per subjek, LDA di-fit per fold | akurasi emosi setelah reduksi LDA |
+
+**Mengapa tugas "tebak subjek" memakai split acak?** Kebocoran pada protokol
+split acak justru terjadi karena frame orang yang sama muncul di train *dan*
+test. Jadi split acak adalah protokol yang tepat untuk mengukur sinyal
+identitas yang dapat dieksploitasi klasifier emosi. Memakai split per subjek
+untuk tugas ini selalu menghasilkan ~0% (subjek uji tidak dikenal model) dan
+mengukur hal yang berbeda.
+
+Normalisasi `excess_over_chance = (acc − chance) / (1 − chance)` dipakai agar
+tugas dengan jumlah kelas berbeda (7 emosi vs 118 subjek) dapat dibandingkan.
+
+Subjek dengan kurang dari `diagnostics.min_images_per_subject` citra (default 5)
+dilewati pada tugas identitas, karena tidak dapat di-CV secara adil.
+
 ## 6. Metrik
 
 Untuk setiap kelas `c` (one-vs-rest):
@@ -144,7 +168,21 @@ dari seluruh fold.
 | Noise | `seed=42`, deterministik |
 | Parameter | seluruhnya di `config.yaml`, tidak ada hardcode |
 | Artefak | `.npz` tanpa pickle |
-| Verifikasi | 41 unit test (`.\run.ps1 test`) |
+| Verifikasi | 50 item test — 49 lulus, 1 modul di-skip (`.\run.ps1 test`) |
+| Diagnosa identitas | `diagnostics` di `config.yaml`; subjek < 5 citra dilewati |
+
+### 7.1 Modul yang dapat diblokir Application Control
+
+Kebijakan WDAC/Device Guard pada Windows dapat memblokir DLL biner Python.
+Yang pernah teramati pada mesin pengembangan:
+
+| Modul | Dampak | Penanganan |
+|---|---|---|
+| `pywt` | `tests/test_features.py` di-skip | `features.py` punya fallback SWT numpy murni |
+| `cv2` | pembacaan citra di notebook A1 | jalankan di mesin lain / artefak `.npz` sudah tersedia |
+| `pandas._libs._ujson` | `import pandas` **gagal total** | penulisan CSV memakai modul `csv` bawaan Python |
+| `sklearn._gradient_boosting` | `RandomForestClassifier` tidak dapat diimpor | dilewati otomatis dan dicatat di `skipped_classifiers` |
+
 
 ## 8. Rujukan
 

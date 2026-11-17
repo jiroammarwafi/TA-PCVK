@@ -62,24 +62,41 @@ perbandingan dengan jurnal; **subject-independent** untuk klaim generalisasi.
 
 ## 4. Uji ketahanan noise
 
-Artefak: `data/a1-noise/{ck,jaffe}_noise_v{0.01,0.02,0.05,0.10}.npz`
+Artefak: `data/a1-noise/{ck,jaffe}_noise_v{0.01,0.02,0.05,0.10}.npz` (8 file)
 Perintah: `.\run.ps1 noise`
 
-Statistik verifikasi (CK+, 981 citra):
+Artefak tidak di-commit (`.gitignore`: `data/a1-noise/*.npz`, ~70 MB) karena
+dapat diregenerasi deterministik dengan `seed=42`.
 
-| Variansi | σ teori | σ empiris | Max \|diff\| |
+### 4.1 Status per tahap
+
+| Tahap | Penanggung jawab | Status | Bukti |
 |---|---|---|---|
-| 0,01 | 0,1000 | 0,0936 | 0,529 |
-| 0,02 | 0,1414 | 0,1293 | 0,753 |
-| 0,05 | 0,2236 | 0,1941 | 1,000 |
-| 0,10 | 0,3162 | 0,2566 | 1,000 |
+| A1 — bangun artefak citra ber-noise | A1 | ✅ selesai | 8 file `.npz`, kunci `X, y, subjects, class_names, variance, seed, source` |
+| A1 — verifikasi statistik noise | A1 | ✅ selesai | tabel 4.2 di bawah |
+| A2 — ekstraksi fitur 680-D dari citra ber-noise | A2 | ❌ belum | belum ada `data/a2-features/*_noise_v*.npz` |
+| A3 — evaluasi akurasi pada data ber-noise | A3 | ❌ belum | menunggu keluaran A2 |
 
-σ empiris lebih kecil karena clipping ke [0,1] dan kuantisasi ke 256 level.
+### 4.2 Verifikasi statistik
 
-**Evaluasi akurasi pada data ber-noise belum dijalankan** — menunggu A2
-mengekstrak ulang fitur dari artefak ini, lalu A3 mengevaluasi.
+σ empiris dihitung dari selisih `X_noise − X_bersih` pada ruang intensitas
+`[0,1]`.
 
-### Angka jurnal sebagai rujukan (Tabel 14)
+| Variansi | σ teori | σ empiris CK+ (n=981) | Max \|diff\| CK+ | σ empiris JAFFE (n=213) | Max \|diff\| JAFFE |
+|---|---|---|---|---|---|
+| 0,01 | 0,1000 | 0,0936 | 0,529 | 0,0948 | 0,518 |
+| 0,02 | 0,1414 | 0,1293 | 0,753 | 0,1306 | 0,718 |
+| 0,05 | 0,2236 | 0,1941 | 1,000 | 0,1954 | 0,980 |
+| 0,10 | 0,3162 | 0,2566 | 1,000 | 0,2578 | 1,000 |
+
+σ empiris lebih kecil dari teori karena dua sebab: (1) clipping ke `[0,1]`
+membuang ekor distribusi, dan (2) kuantisasi ke 256 level. Efeknya makin
+terasa pada variansi besar (0,10), di mana deviasi mencapai ~19%.
+
+`variance=0` menghasilkan salinan **identik** — dipakai sebagai kontrol di
+`tests/test_noise.py`.
+
+### 4.3 Angka jurnal sebagai rujukan (Tabel 14)
 
 | Kondisi | CK+ Sen / Spe / Acc | JAFFE Sen / Spe / Acc |
 |---|---|---|
@@ -88,13 +105,63 @@ mengekstrak ulang fitur dari artefak ini, lalu A3 mengevaluasi.
 
 > Pada jurnal, noise **CK+ = 97,17%** dan **JAFFE = 97,59%**. Keduanya berbeda.
 
-## 5. Yang belum dikerjakan
+## 5. Diagnosa identitas subjek
+
+Sumber: `reports/a1-subject-independent/identity_{ck,jaffe}.json`
+Perintah: `.\run.ps1 identity`
+
+Mengukur **penyebab** anjloknya akurasi pada §3: seberapa besar vektor fitur
+680-D menyimpan identitas orang, bukan ekspresi.
+
+### 5.1 Hasil
+
+| Pengukuran | CK+ (118 subjek) | JAFFE (10 subjek) |
+|---|---|---|
+| Menebak **subjek** dari fitur (split acak) | **98,58%** | **99,53%** |
+| Peluang acak menebak subjek | 1,03% | 10,00% |
+| Emosi — fitur mentah, tanpa LDA (per subjek) | **89,90%** (logreg) | **57,68%** (logreg) |
+| Emosi — LDA nested, 6 komponen (per subjek) | 53,19% | 36,00% |
+| **Penalti LDA** | **36,71 poin** | **21,69 poin** |
+
+Pembanding klasifier pada fitur mentah (protokol per subjek):
+
+| Klasifier | CK+ | JAFFE |
+|---|---|---|
+| LogisticRegression | **89,90%** | **57,68%** |
+| SVC RBF (C=10) | 81,18% | 46,57% |
+| Random Forest | dilewati — DLL diblokir | dilewati — DLL diblokir |
+
+### 5.2 Interpretasi
+
+1. **Fitur hampir sepenuhnya memuat identitas.** Menebak *siapa* orangnya
+   berhasil 98,58% (CK+) dan 99,53% (JAFFE), padahal peluangnya hanya
+   1,03% dan 10,00%. Fitur hybrid SWT+PHOG memang deskriptor bentuk wajah —
+   bentuk wajah per orang jauh lebih menonjol daripada ekspresinya.
+2. **LDA justru merugikan pada protokol jujur.** Tanpa LDA, akurasi emosi
+   per subjek mencapai 89,90% (CK+), sedangkan dengan LDA nested hanya
+   53,19%. Artinya LDA membuang **36,71 poin persen** informasi ekspresi.
+   Untuk JAFFE penaltinya 21,69 poin.
+3. **Ini menjelaskan angka §3.** Pipeline A3 memakai LDA → 48,21% (CK+).
+   Tanpa LDA, batas atasnya 89,90%. Jadi kejatuhan 96,64% → 48,21% bukan
+   semata kebocoran identitas; sebagian disebabkan LDA yang di-fit per fold
+   mempertahankan arah diskriminan identitas, bukan ekspresi.
+4. **Rekomendasi untuk A3:** laporkan protokol subject-independent **dengan
+   dan tanpa LDA**. Klaim generalisasi memakai angka tanpa LDA; angka
+   dengan LDA tetap ditampilkan sebagai pembanding setia terhadap jurnal.
+
+> Catatan metodologis: tugas "tebak subjek" sengaja memakai split **acak**,
+> bukan split per subjek. Dengan split per subjek, subjek di data uji tidak
+> pernah ada di data latih sehingga akurasinya selalu ~0% — itu mengukur
+> generalisasi ke orang baru, bukan kebocoran yang ingin dibuktikan.
+
+## 6. Yang belum dikerjakan
 
 | Item | Status |
 |---|---|
 | Algoritma Jaya (inti judul jurnal) | ❌ belum — masih grid search |
 | Pembanding PSO & GA | ❌ belum |
 | Kurva konvergensi optimizer | ❌ belum |
+| Ekstraksi fitur dari citra ber-noise (A2) | ❌ belum — memblokir evaluasi noise |
 | Evaluasi akurasi pada data ber-noise | ⏳ menunggu A2 |
 | Perbandingan Lin/Poly LS-SVM, RF, BPNN | ❌ belum |
 | Waktu latih/uji | ❌ belum |

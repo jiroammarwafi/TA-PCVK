@@ -81,6 +81,24 @@ noise:
   variances: [0.01, 0.02, 0.05, 0.1]   # rentang variansi pada jurnal
   seed: 42                             # seed RNG agar reprodusibel
 
+# Diagnosa kebocoran identitas subjek (A1).
+# Mengukur seberapa besar fitur 680-D memuat identitas orang, bukan ekspresi.
+# Dijalankan oleh research/a1-data-preprocessing/diagnose_identity.py.
+diagnostics:
+  min_images_per_subject: 5   # subjek dengan citra < ini dilewati saat menebak identitas
+  subject_cv_splits: 3        # fold untuk tugas "tebak subjek"
+  classifiers:
+    svc:
+      C: 10.0
+      gamma: "scale"
+    logreg:
+      max_iter: 3000
+      C: 1.0
+    random_forest:
+      n_estimators: 300
+      n_jobs: -1
+      random_state: 0
+
 toy_datasets:
   xor:
     n_samples: 200

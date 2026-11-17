@@ -1,0 +1,86 @@
+{
+  "n_samples": 981,
+  "n_subjects": 118,
+  "n_classes": 7,
+  "class_names": [
+    "anger",
+    "contempt",
+    "disgust",
+    "fear",
+    "happy",
+    "sadness",
+    "surprise"
+  ],
+  "chance_expression": 0.14285714285714285,
+  "min_images_per_subject": 5,
+  "subject_identification": {
+    "accuracy": 0.9858387799564271,
+    "std": 0.004075879506289732,
+    "fold_accuracies": [
+      0.9902,
+      0.9869,
+      0.9804
+    ],
+    "elapsed_s": 0.69,
+    "split": "random",
+    "n_subjects_evaluated": 97,
+    "n_samples_evaluated": 918,
+    "chance": 0.010309278350515464,
+    "excess_over_chance": 0.9856912672476399
+  },
+  "raw_features": {
+    "svc_rbf": {
+      "accuracy": 0.8118174005945745,
+      "std": 0.052386149739132234,
+      "fold_accuracies": [
+        0.7846,
+        0.8854,
+        0.7333,
+        0.849,
+        0.8068
+      ],
+      "elapsed_s": 0.86,
+      "excess_over_chance": 0.7804536340270035
+    },
+    "logreg": {
+      "accuracy": 0.8990189520624303,
+      "std": 0.028412848343052736,
+      "fold_accuracies": [
+        0.8564,
+        0.8906,
+        0.8923,
+        0.9427,
+        0.913
+      ],
+      "elapsed_s": 0.84,
+      "excess_over_chance": 0.8821887774061687
+    }
+  },
+  "skipped_classifiers": {
+    "random_forest": "ImportError: DLL load failed while importing _gradient_boosting: An Application Control policy has blocked this file."
+  },
+  "lda_nested": {
+    "accuracy": 0.5319089093273875,
+    "std": 0.03890188587419434,
+    "fold_accuracies": [
+      0.5282,
+      0.5573,
+      0.5846,
+      0.5208,
+      0.4686
+    ],
+    "n_components": 6,
+    "elapsed_s": 1.63,
+    "excess_over_chance": 0.4538937275486188
+  },
+  "summary": {
+    "subject_identification_accuracy": 0.9858387799564271,
+    "subject_identification_excess": 0.9856912672476399,
+    "best_raw_classifier": "logreg",
+    "best_raw_accuracy": 0.8990189520624303,
+    "best_raw_excess": 0.8821887774061687,
+    "lda_nested_accuracy": 0.5319089093273875,
+    "lda_penalty_points": 0.3671100427350428,
+    "identity_dominates_expression": true
+  }
+}
