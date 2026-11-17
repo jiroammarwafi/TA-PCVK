@@ -1,5 +1,5 @@
 """
-Unit test suite untuk modul feature-engineering/features.py.
+Unit test suite untuk modul research/a2-feature-engineering/features.py.
 
 Verifikasi:
 1. Output swt_haar_level1 memiliki keys A1, H1, V1, D1 berukuran (128, 128) float64.
@@ -13,7 +13,20 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from features import (
+# Modul fitur membutuhkan PyWavelets. Pada mesin dengan kebijakan Application
+# Control (WDAC/Device Guard), DLL pywt dapat diblokir sehingga modul tidak
+# bisa dimuat. Dalam kondisi itu seluruh test di file ini dilewati, bukan
+# menggagalkan koleksi pytest — karena penyebabnya lingkungan, bukan kode.
+try:
+    import pywt  # noqa: F401
+except Exception as _exc:  # pragma: no cover - bergantung kebijakan mesin
+    pytest.skip(
+        f"PyWavelets tidak dapat dimuat ({type(_exc).__name__}); "
+        "test fitur dilewati karena kebijakan Application Control",
+        allow_module_level=True,
+    )
+
+from features import (  # noqa: E402
     swt_haar_level1,
     compute_gradients,
     phog,
@@ -83,8 +96,9 @@ def test_extract_features_single_and_batch():
 
 def test_real_dataset_samples():
     """Memverifikasi ekstraksi fitur pada sampel nyata dataset CK+ dan JAFFE."""
-    ck_path = Path("data/ck_preprocessed.npz")
-    jaffe_path = Path("data/jaffe_preprocessed.npz")
+    root = Path(__file__).resolve().parents[1]
+    ck_path = root / "data" / "a1-preprocessing" / "ck_preprocessed.npz"
+    jaffe_path = root / "data" / "a1-preprocessing" / "jaffe_preprocessed.npz"
 
     if ck_path.exists():
         d_ck = np.load(ck_path)

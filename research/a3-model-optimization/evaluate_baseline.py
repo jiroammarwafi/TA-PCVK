@@ -3,7 +3,7 @@ Skrip Eksekusi Evaluasi Baseline Model (LDA + SVM-RBF) pada CK+ dan JAFFE.
 Menghasilkan:
 1. File JSON hasil lengkap di reports/
 2. Tabel ringkasan CSV di reports/
-3. Visualisasi Confusion Matrix di reports/figures/
+3. Visualisasi Confusion Matrix di reports/a3-models/figures/
 """
 
 import json
@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from baseline import run_baseline_evaluation, load_config
+from baseline import run_baseline_evaluation, load_config, resolve_path
 
 
 def plot_confusion_matrix(cm, class_names, title, output_path):
@@ -57,15 +57,17 @@ def plot_confusion_matrix(cm, class_names, title, output_path):
 
 def main():
     config = load_config()
-    reports_dir = Path(config["paths"]["reports_dir"])
-    figures_dir = Path(config["paths"]["figures_dir"])
+    reports_dir = resolve_path(
+        config, config["paths"].get("a3_reports_dir", config["paths"]["reports_dir"])
+    )
+    figures_dir = resolve_path(config, config["paths"]["figures_dir"])
     reports_dir.mkdir(parents=True, exist_ok=True)
     figures_dir.mkdir(parents=True, exist_ok=True)
 
     summary_rows = []
 
     # 1. Dataset CK+
-    ck_path = Path(config["paths"]["ck_features"])
+    ck_path = resolve_path(config, config["paths"]["ck_features"])
     if ck_path.exists():
         print(f"\n[INFO] Menjalankan baseline 5-fold CV pada CK+ ({ck_path})...")
         res_ck = run_baseline_evaluation(ck_path, config=config)
@@ -94,7 +96,7 @@ def main():
         print(f"[WARN] File {ck_path} tidak ditemukan.")
 
     # 2. Dataset JAFFE
-    jaffe_path = Path(config["paths"]["jaffe_features"])
+    jaffe_path = resolve_path(config, config["paths"]["jaffe_features"])
     if jaffe_path.exists():
         print(f"\n[INFO] Menjalankan baseline 5-fold CV pada JAFFE ({jaffe_path})...")
         res_jaffe = run_baseline_evaluation(jaffe_path, config=config)
