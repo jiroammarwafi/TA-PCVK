@@ -19,7 +19,13 @@ dipakai, modul otomatis memakai implementasi SWT Haar murni numpy yang
 setara (selisih < 1e-12 terhadap pywt.swt2).
 """
 
-from typing import Dict, Optional, Tuple, Union
+from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+import argparse
+import os
+import sys
+import time
 
 import cv2
 import numpy as np
@@ -276,3 +282,216 @@ def extract_features(
             f"Input X harus berdimensi 2 (H, W) atau 3 (N, H, W), diterima bentuk "
             f"{X.shape} (ndim={X.ndim})."
         )
+
+
+# ============================================================================
+#  Orkestrasi Ekstraksi Fitur Citra Ber-Noise (A2 Handoff ke A3)
+# ============================================================================
+
+DEFAULT_VARIANCES: Tuple[float, ...] = (0.01, 0.02, 0.05, 0.1)
+DATASET_KEYS: Tuple[str, ...] = ("ck", "jaffe")
+
+
+def _config_root(config: Dict[str, Any]) -> Path:
+    raw = config.get("_config_path")
+    if raw:
+        return Path(str(raw)).resolve().parent
+    return Path.cwd()
+
+
+def _resolve_path(config: Dict[str, Any], value: Union[str, Path]) -> Path:
+    p = Path(str(value))
+    if p.is_absolute():
+        return p
+    if p.exists():
+        return p
+    return _config_root(config) / p
+
+
+def noise_feature_path(
+    config: Dict[str, Any],
+    dataset_key: str,
+    variance: float,
+) -> Path:
+    """Path artefak fitur citra ber-noise, mis. data/a2-features/ck_features_noise_v0.01.npz."""
+    raw_dir = config.get("paths", {}).get("a2_features_dir", "data/a2-features")
+    features_dir = _resolve_path(config, raw_dir)
+    return features_dir / f"{dataset_key}_features_noise_v{float(variance):.2f}.npz"
+
+
+def noise_input_image_path(
+    config: Dict[str, Any],
+    dataset_key: str,
+    variance: float,
+) -> Path:
+    """Path artefak citra ber-noise dari A1, mis. data/a1-noise/ck_noise_v0.01.npz."""
+    raw_dir = config.get("paths", {}).get("a1_noise_dir", "data/a1-noise")
+    noise_dir = _resolve_path(config, raw_dir)
+    return noise_dir / f"{dataset_key}_noise_v{float(variance):.2f}.npz"
+
+
+def build_noise_features(
+    config: Dict[str, Any],
+    variances: Optional[Sequence[float]] = None,
+    dataset_keys: Optional[Iterable[str]] = None,
+    force: bool = False,
+    verbose: bool = True,
+) -> List[Path]:
+    """
+    Mengekstrak fitur 680-D (SWT Haar Level-1 + PHOG) dari seluruh artefak
+    citra ber-noise yang dihasilkan A1 (data/a1-noise/), lalu mengekspornya ke
+    data/a2-features/ untuk dikonsumsi oleh A3.
+
+    Parameters
+    ----------
+    config : dict
+        Konfigurasi proyek dari config.yaml.
+    variances : sequence of float, optional
+        Daftar variansi noise (default: 0.01, 0.02, 0.05, 0.1).
+    dataset_keys : iterable of str, optional
+        Kunci dataset ('ck', 'jaffe').
+    force : bool, default=False
+        Bila False, lewati artefak yang sudah ada di disk.
+    verbose : bool, default=True
+        Cetak informasi progres ke terminal.
+
+    Returns
+    -------
+    written : list[Path]
+        Daftar path artefak fitur yang ditulis atau sudah ada.
+    """
+    variances = tuple(DEFAULT_VARIANCES if variances is None else variances)
+    keys = tuple(DATASET_KEYS if dataset_keys is None else dataset_keys)
+
+    raw_out = config.get("paths", {}).get("a2_features_dir", "data/a2-features")
+    out_dir = _resolve_path(config, raw_out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    phog_cfg = config.get("feature_engineering", {}).get("phog", {})
+    L = int(phog_cfg.get("pyramid_levels", 3))
+    K = int(phog_cfg.get("num_bins", 8))
+    norm = phog_cfg.get("norm", "per_level")
+
+    written: List[Path] = []
+
+    for key in keys:
+        if verbose:
+            print(f"[noise-features] Dataset: {key.upper()}")
+
+        for var in variances:
+            dst = noise_feature_path(config, key, var)
+            if dst.exists() and not force:
+                if verbose:
+                    print(f"  [skip] {dst.name} sudah ada")
+                written.append(dst)
+                continue
+
+            src = noise_input_image_path(config, key, var)
+            if not src.exists():
+                if verbose:
+                    print(f"  [lewati] {src.name} belum ada di {src.parent}")
+                continue
+
+            with np.load(src, allow_pickle=True) as data:
+                X = data["X"]
+                y = data["y"]
+                subjects = data["subjects"]
+                class_names = data["class_names"]
+                seed = int(data["seed"]) if "seed" in data else 42
+
+            t0 = time.perf_counter()
+            F = extract_features(X, L=L, K=K, norm=norm)
+            dt = time.perf_counter() - t0
+
+            assert F.shape == (len(X), 680), f"Dimensi tidak cocok: {F.shape}"
+            assert np.isfinite(F).all(), f"Terdapat NaN/Inf pada {dst.name}"
+
+            np.savez_compressed(
+                dst,
+                F=F,
+                y=y,
+                subjects=subjects,
+                class_names=class_names,
+                variance=float(var),
+                seed=seed,
+            )
+            written.append(dst)
+            if verbose:
+                print(f"  [tulis] {dst.name} ({F.shape[0]} citra -> {F.shape[1]}-D dalam {dt:.2f}s)")
+
+    return written
+
+
+def main() -> None:
+    """CLI runner untuk ekstraksi fitur A2."""
+    parser = argparse.ArgumentParser(
+        description="Ekstraksi fitur hybrid SWT + PHOG (A2) untuk citra normal dan ber-noise."
+    )
+    parser.add_argument("--config", default="config.yaml", help="Path config.yaml")
+    parser.add_argument("--noise", action="store_true", help="Ekstrak fitur dari artefak citra ber-noise")
+    parser.add_argument(
+        "--variances",
+        nargs="+",
+        type=float,
+        default=list(DEFAULT_VARIANCES),
+        help="Variansi noise yang diproses",
+    )
+    parser.add_argument(
+        "--datasets",
+        nargs="+",
+        choices=list(DATASET_KEYS),
+        default=list(DATASET_KEYS),
+        help="Dataset yang diproses ('ck', 'jaffe')",
+    )
+    parser.add_argument("--force", action="store_true", help="Paksa ekstrak ulang file yang sudah ada")
+    args = parser.parse_args()
+
+    # Load config via baseline helper or PyYAML directly
+    config_path = Path(args.config)
+    if not config_path.exists() and (Path("..") / args.config).exists():
+        config_path = Path("..") / args.config
+
+    import yaml
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+    config["_config_path"] = str(config_path.resolve())
+
+    if args.noise:
+        print("=== A2: EKSTRAKSI FITUR CITRA BER-NOISE GAUSSIAN ===")
+        out = build_noise_features(
+            config,
+            variances=args.variances,
+            dataset_keys=args.datasets,
+            force=args.force,
+            verbose=True,
+        )
+        print(f"\nSelesai. {len(out)} artefak fitur noise tersedia di {config['paths']['a2_features_dir']}/")
+    else:
+        # Default extraction untuk dataset bersih (CK+ dan JAFFE)
+        print("=== A2: EKSTRAKSI FITUR CITRA BERSIH ===")
+        for key in args.datasets:
+            pre_path = _resolve_path(config, config["paths"][f"{key}_preprocessed"])
+            feat_path = _resolve_path(config, config["paths"][f"{key}_features"])
+            if not pre_path.exists():
+                print(f"[lewati] {key}: {pre_path} tidak ditemukan")
+                continue
+            with np.load(pre_path, allow_pickle=True) as data:
+                X = data["X"]
+                y = data["y"]
+                subjects = data["subjects"]
+                class_names = data["class_names"]
+            t0 = time.perf_counter()
+            F = extract_features(X)
+            dt = time.perf_counter() - t0
+            np.savez_compressed(
+                feat_path,
+                F=F,
+                y=y,
+                subjects=subjects,
+                class_names=class_names,
+            )
+            print(f"[tulis] {feat_path.name}: {F.shape} dalam {dt:.2f}s")
+
+
+if __name__ == "__main__":
+    main()

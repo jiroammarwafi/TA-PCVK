@@ -31,6 +31,8 @@ from features import (  # noqa: E402
     compute_gradients,
     phog,
     extract_features,
+    noise_feature_path,
+    build_noise_features,
 )
 
 
@@ -137,3 +139,69 @@ def test_invalid_input_shape():
         extract_features(np.zeros((128, 128, 3)))
     with pytest.raises(ValueError):
         extract_features(np.zeros((128,)))
+
+
+def test_noise_feature_path_pattern(tmp_path):
+    """Memverifikasi pembentukan path artefak fitur ber-noise."""
+    config = {
+        "paths": {"a2_features_dir": str(tmp_path)},
+        "_config_path": str(tmp_path / "config.yaml"),
+    }
+    p = noise_feature_path(config, "ck", 0.05)
+    assert p.name == "ck_features_noise_v0.05.npz"
+    assert p.parent == tmp_path
+
+
+def test_build_noise_features_mock(tmp_path):
+    """Memverifikasi proses ekstraksi fitur citra ber-noise dari artefak A1."""
+    noise_dir = tmp_path / "a1-noise"
+    feat_dir = tmp_path / "a2-features"
+    noise_dir.mkdir()
+    feat_dir.mkdir()
+
+    # Buat dummy artefak citra ber-noise A1
+    X_dummy = np.random.randint(0, 256, (3, 128, 128), dtype=np.uint8)
+    y_dummy = np.array([0, 1, 2])
+    subj_dummy = np.array(["S01", "S02", "S03"])
+    classes_dummy = np.array(["c0", "c1", "c2"])
+
+    noise_file = noise_dir / "ck_noise_v0.01.npz"
+    np.savez_compressed(
+        noise_file,
+        X=X_dummy,
+        y=y_dummy,
+        subjects=subj_dummy,
+        class_names=classes_dummy,
+        variance=0.01,
+        seed=42,
+    )
+
+    config = {
+        "paths": {
+            "a1_noise_dir": str(noise_dir),
+            "a2_features_dir": str(feat_dir),
+        },
+        "_config_path": str(tmp_path / "config.yaml"),
+    }
+
+    out = build_noise_features(
+        config,
+        variances=[0.01],
+        dataset_keys=["ck"],
+        force=True,
+        verbose=False,
+    )
+
+    assert len(out) == 1
+    dst = out[0]
+    assert dst.exists()
+    assert dst.name == "ck_features_noise_v0.01.npz"
+
+    with np.load(dst) as data:
+        assert data["F"].shape == (3, 680)
+        assert data["F"].dtype == np.float32
+        assert np.isfinite(data["F"]).all()
+        assert (data["y"] == y_dummy).all()
+        assert (data["subjects"] == subj_dummy).all()
+        assert float(data["variance"]) == 0.01
+

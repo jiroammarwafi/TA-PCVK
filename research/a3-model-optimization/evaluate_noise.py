@@ -76,9 +76,27 @@ def evaluate_noise_robustness(
     dataset_name: str,
     noise_levels: list[float] = NOISE_LEVELS,
     n_folds: int = N_FOLDS,
+    noise_features: dict[float, np.ndarray] | None = None,
 ) -> dict:
     """
     Jalankan evaluasi ketahanan noise pada satu dataset.
+
+    Parameters:
+        X : np.ndarray
+            Fitur bersih 680-D dari data/a2-features/*.npz.
+        y : np.ndarray
+            Label kelas.
+        dataset_name : str
+            Nama dataset ('CK+' atau 'JAFFE').
+        noise_levels : list of float
+            Tingkat variansi noise.
+        n_folds : int
+            Jumlah fold CV.
+        noise_features : dict of float -> np.ndarray, optional
+            Fitur 680-D yang diekstrak langsung dari citra ber-noise oleh A2
+            (data/a2-features/*_features_noise_v*.npz). Jika tersedia, fitur
+            nyata ini akan diproyeksikan dengan LDA fold latih. Jika tidak,
+            fallback ke noise Gaussian sintetis pada ruang LDA.
 
     Returns:
         dict: { noise_level -> {"accuracy": float, "sensitivity": float, "specificity": float} }
@@ -135,8 +153,17 @@ def evaluate_noise_robustness(
 
         # ── Evaluasi pada berbagai level noise ──
         for noise_lvl in noise_levels:
-            X_test_noisy = add_gaussian_noise(X_test_lda, noise_lvl, rng)
-            X_test_noisy_scaled = scaler.transform(X_test_noisy)
+            if noise_lvl == 0.0:
+                X_test_eval = X_test_lda
+            elif noise_features is not None and noise_lvl in noise_features:
+                # Menggunakan fitur 680-D riil hasil ekstraksi citra ber-noise oleh A2
+                X_noisy_raw_test = noise_features[noise_lvl][test_idx]
+                X_test_eval = lda.transform(X_noisy_raw_test)
+            else:
+                # Fallback: noise Gaussian pada ruang LDA jika artefak fitur A2 belum ada
+                X_test_eval = add_gaussian_noise(X_test_lda, noise_lvl, rng)
+
+            X_test_noisy_scaled = scaler.transform(X_test_eval)
             y_pred = clf.predict(X_test_noisy_scaled)
             acc = float(np.mean(y_pred == y_test))
             results_per_noise[noise_lvl].append(acc)
@@ -212,8 +239,23 @@ def main():
         y = data["y"]
         print(f"Dataset dimuat: {X.shape[0]} sampel, {X.shape[1]} fitur, {len(np.unique(y))} kelas")
 
+        # Muat fitur citra ber-noise nyata dari A2 jika tersedia
+        key_prefix = "ck" if "ck" in dataset_name.lower() else "jaffe"
+        noise_features = {}
+        features_dir = REPO_ROOT / config["paths"].get("a2_features_dir", "data/a2-features")
+        for lvl in NOISE_LEVELS:
+            if lvl == 0.0:
+                continue
+            noise_feat_path = features_dir / f"{key_prefix}_features_noise_v{lvl:.2f}.npz"
+            if noise_feat_path.exists():
+                with np.load(noise_feat_path) as ndata:
+                    noise_features[lvl] = ndata["F"].astype(np.float64)
+                print(f"  [A2 Fitur] Memuat {noise_feat_path.name} ({noise_features[lvl].shape})")
+
         t_start = time.perf_counter()
-        summary = evaluate_noise_robustness(X, y, dataset_name)
+        summary = evaluate_noise_robustness(
+            X, y, dataset_name, noise_features=noise_features if noise_features else None
+        )
         elapsed = time.perf_counter() - t_start
 
         all_results[dataset_name] = summary

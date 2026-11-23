@@ -6,6 +6,18 @@ Replication of Kar et al. (2021):
 facial expression recognition", IET Image Processing.
 """
 
-from .features import swt_haar_level1, phog, extract_features
+from .features import (
+    swt_haar_level1,
+    phog,
+    extract_features,
+    noise_feature_path,
+    build_noise_features,
+)
 
-__all__ = ["swt_haar_level1", "phog", "extract_features"]
+__all__ = [
+    "swt_haar_level1",
+    "phog",
+    "extract_features",
+    "noise_feature_path",
+    "build_noise_features",
+]

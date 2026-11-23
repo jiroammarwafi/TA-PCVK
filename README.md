@@ -298,7 +298,7 @@ Verifikasi statistik (CK+, 981 citra):
 
 > Perhatikan: pada jurnal, angka noise **CK+ = 97,17%** dan **JAFFE = 97,59%**. Keduanya berbeda; jangan tertukar — sebagian rangkuman sering salah menulis 97,17% sebagai angka JAFFE.
 
-> Status: artefak citra ber-noise **sudah dibuat**, tetapi evaluasi akurasi pada data ber-noise **belum dijalankan** (menunggu A2 mengekstrak ulang fitur, lalu A3 mengevaluasi). Lihat `docs/hasil.md` §4.
+> Status: artefak citra ber-noise (A1) dan artefak fitur 680-D (A2) **lengkap tersedia** (`data/a2-features/*_features_noise_v*.npz`), siap untuk evaluasi ketahanan model oleh A3 (`evaluate_noise.py`). Lihat `docs/hasil.md` §4.
 
 ### Minggu 14 — Evaluasi Subject-Independent
 

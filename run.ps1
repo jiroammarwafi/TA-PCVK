@@ -5,6 +5,7 @@
 #    .\run.ps1 test        jalankan seluruh unit test
 #    .\run.ps1 pipeline    buka notebook pipeline lengkap
 #    .\run.ps1 noise       bangun artefak citra ber-noise (A1)
+#    .\run.ps1 a2-noise    ekstraksi fitur 680-D dari citra ber-noise (A2)
 #    .\run.ps1 split       evaluasi split acak vs subject-independent (A1)
 #    .\run.ps1 identity    diagnosa kebocoran identitas subjek (A1)
 #    .\run.ps1 baseline    evaluasi baseline LDA + SVM-RBF (A3)
@@ -15,7 +16,7 @@
 # ============================================================================
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("test", "pipeline", "noise", "split", "identity", "baseline", "lssvm", "report", "check", "clean", "help")]
+    [ValidateSet("test", "pipeline", "noise", "a2-noise", "noise-features", "split", "identity", "baseline", "lssvm", "report", "check", "clean", "help")]
     [string]$Task = "help"
 )
 
@@ -52,6 +53,10 @@ switch ($Task) {
     "noise" {
         Write-Host "[noise] artefak citra ber-noise (A1)" -ForegroundColor Cyan
         Invoke-Py @("research\a1-data-preprocessing\noise.py")
+    }
+    { $_ -in "a2-noise", "noise-features" } {
+        Write-Host "[a2-noise] ekstraksi fitur 680-D dari citra ber-noise (A2)" -ForegroundColor Cyan
+        Invoke-Py @("research\a2-feature-engineering\features.py", "--noise")
     }
     "split" {
         Write-Host "[split] split acak vs subject-independent (A1)" -ForegroundColor Cyan

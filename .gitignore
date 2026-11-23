@@ -21,7 +21,9 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 
-# Artefak noise Gaussian (A1) - dapat diregenerasi deterministik:
+# Artefak noise Gaussian (A1 & A2) - dapat diregenerasi deterministik:
 #   .\run.ps1 noise
-# Ukurannya ~70 MB sehingga tidak di-commit; artefak A1/A2 utama tetap di-commit.
+#   .\run.ps1 a2-noise
+# Ukurannya ~70 MB + ~12 MB sehingga tidak di-commit; artefak A1/A2 utama tetap di-commit.
 data/a1-noise/*.npz
+data/a2-features/*_noise_v*.npz

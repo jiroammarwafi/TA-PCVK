@@ -74,8 +74,8 @@ dapat diregenerasi deterministik dengan `seed=42`.
 |---|---|---|---|
 | A1 — bangun artefak citra ber-noise | A1 | ✅ selesai | 8 file `.npz`, kunci `X, y, subjects, class_names, variance, seed, source` |
 | A1 — verifikasi statistik noise | A1 | ✅ selesai | tabel 4.2 di bawah |
-| A2 — ekstraksi fitur 680-D dari citra ber-noise | A2 | ❌ belum | belum ada `data/a2-features/*_noise_v*.npz` |
-| A3 — evaluasi akurasi pada data ber-noise | A3 | ❌ belum | menunggu keluaran A2 |
+| A2 — ekstraksi fitur 680-D dari citra ber-noise | A2 | ✅ selesai | 8 file `.npz` di `data/a2-features/*_features_noise_v*.npz` |
+| A3 — evaluasi akurasi pada data ber-noise | A3 | ✅ siap | artefak fitur A2 telah tersedia untuk `evaluate_noise.py` |
 
 ### 4.2 Verifikasi statistik
 
@@ -161,8 +161,8 @@ Pembanding klasifier pada fitur mentah (protokol per subjek):
 | Algoritma Jaya (inti judul jurnal) | ❌ belum — masih grid search |
 | Pembanding PSO & GA | ❌ belum |
 | Kurva konvergensi optimizer | ❌ belum |
-| Ekstraksi fitur dari citra ber-noise (A2) | ❌ belum — memblokir evaluasi noise |
-| Evaluasi akurasi pada data ber-noise | ⏳ menunggu A2 |
+| Ekstraksi fitur dari citra ber-noise (A2) | ✅ selesai — 8 file di `data/a2-features/` |
+| Evaluasi akurasi pada data ber-noise (A3) | ✅ siap dijalankan (`evaluate_noise.py`) |
 | Perbandingan Lin/Poly LS-SVM, RF, BPNN | ❌ belum |
 | Waktu latih/uji | ❌ belum |
 | Web (A4) | ⏳ belum |
