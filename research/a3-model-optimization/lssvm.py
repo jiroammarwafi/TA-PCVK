@@ -9,11 +9,16 @@ Referensi:
   IET Image Processing, 15(7), 1471-1483.
 """
 
+import os
+# Mencegah memory allocation error pada OpenBLAS di Windows
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+
 from itertools import combinations
 from typing import Optional, Union, Tuple, Dict, List, Any
 import numpy as np
 from scipy.spatial.distance import cdist
-from scipy.linalg import solve, LinAlgError, lstsq
 from sklearn.base import BaseEstimator, ClassifierMixin
 
 
@@ -53,11 +58,15 @@ class LSSVMClassifier(BaseEstimator, ClassifierMixin):
         sigma: float = 1.0,
         kernel: str = "rbf",
         ridge_jitter: float = 1e-8,
+        degree: int = 2,
+        coef0: float = 1.0,
     ):
         self.gamma = gamma
         self.sigma = sigma
         self.kernel = kernel
         self.ridge_jitter = ridge_jitter
+        self.degree = degree
+        self.coef0 = coef0
 
     def _compute_kernel(
         self, X1: np.ndarray, X2: Optional[np.ndarray] = None
@@ -74,9 +83,11 @@ class LSSVMClassifier(BaseEstimator, ClassifierMixin):
             return np.exp(-gamma_rbf * sq_dists)
         elif self.kernel == "linear":
             return np.dot(X1, X2.T)
+        elif self.kernel == "poly":
+            return (np.dot(X1, X2.T) + self.coef0) ** self.degree
         else:
             raise ValueError(
-                f"Kernel '{self.kernel}' tidak didukung. Pilihan: 'rbf', 'linear'."
+                f"Kernel '{self.kernel}' tidak didukung. Pilihan: 'rbf', 'linear', 'poly'."
             )
 
     def fit(self, X: np.ndarray, y: np.ndarray) -> "LSSVMClassifier":
@@ -149,11 +160,10 @@ class LSSVMClassifier(BaseEstimator, ClassifierMixin):
 
         # 4. Selesaikan sistem linear A * [b, α]^T = B
         try:
-            # A simetris
-            sol = solve(A, B, assume_a="sym")
-        except LinAlgError:
+            sol = np.linalg.solve(A, B)
+        except np.linalg.LinAlgError:
             # Fallback ke least squares jika singular
-            sol, _, _, _ = lstsq(A, B)
+            sol, _, _, _ = np.linalg.lstsq(A, B, rcond=None)
 
         self.b_ = float(sol[0])
         self.alpha_ = sol[1:].astype(np.float64)
@@ -239,11 +249,15 @@ class OneVsOneLSSVMClassifier(BaseEstimator, ClassifierMixin):
         sigma: float = 1.0,
         kernel: str = "rbf",
         ridge_jitter: float = 1e-8,
+        degree: int = 2,
+        coef0: float = 1.0,
     ):
         self.gamma = gamma
         self.sigma = sigma
         self.kernel = kernel
         self.ridge_jitter = ridge_jitter
+        self.degree = degree
+        self.coef0 = coef0
 
     def fit(self, X: np.ndarray, y: np.ndarray) -> "OneVsOneLSSVMClassifier":
         """
@@ -270,6 +284,8 @@ class OneVsOneLSSVMClassifier(BaseEstimator, ClassifierMixin):
                 sigma=self.sigma,
                 kernel=self.kernel,
                 ridge_jitter=self.ridge_jitter,
+                degree=self.degree,
+                coef0=self.coef0,
             )
             clf.fit(X_sub, y_sub)
             self.classifiers_[(c1, c2)] = clf

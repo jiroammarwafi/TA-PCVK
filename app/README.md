@@ -20,7 +20,8 @@ app/
 | Kebutuhan | Lokasi | Status |
 |---|---|---|
 | Matriks fitur | `data/a2-features/*.npz` | ✅ tersedia |
-| Parameter model (LDA + LS-SVM) | belum diekspor | ❌ perlu dibuat A3 |
+| Parameter model (LDA + LS-SVM) | `app/model.npz` (`reports/a3-models/model.npz`) | ✅ tersedia (A3) |
+| Engine inferensi NumPy murni | `app/inference.py` (`research/a3-model-optimization/`) | ✅ tersedia (A3) |
 | Daftar kelas & metrik | `reports/a3-models/*.json` | ✅ tersedia |
 | Hasil uji noise & split | `reports/a1-subject-independent/*` | ✅ tersedia |
 

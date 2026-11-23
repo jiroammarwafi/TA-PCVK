@@ -1,0 +1,4 @@
+Method,CK+ Training time (s),CK+ Testing time (s),CK+ Acc (%),JAFFE Training time (s),JAFFE Testing time (s),JAFFE Acc (%)
+JOLS-SVM,0.1398,0.000176,95.62,0.0079,9e-05,78.91
+PSOLS-SVM,0.1274,0.00016,86.94,0.0081,8.4e-05,78.43
+GALS-SVM,0.126,0.00016,86.94,0.0105,8.8e-05,78.89
