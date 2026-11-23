@@ -46,7 +46,7 @@ env `FER_DATASET_DIR` bila berbeda dari default `../dataset`.
 
 | Folder | Isi |
 |---|---|
-| `research/a1-data-preprocessing/` | modul `.py` A1: noise, evaluasi split |
+| `research/a1-data-preprocessing/` | modul `.py` A1: noise, evaluasi split, diagnosa identitas |
 | `research/a2-feature-engineering/` | modul `.py` A2: SWT + PHOG |
 | `research/a3-model-optimization/` | modul `.py` A3: LS-SVM, baseline, evaluator |
 | `research/pipeline/` | **semua notebook**, termasuk `00-pipeline-lengkap.ipynb` |
@@ -60,7 +60,7 @@ env `FER_DATASET_DIR` bila berbeda dari default `../dataset`.
 
 | Kode | Cakupan | Status |
 |---|---|---|
-| **A1** | Data, praproses, noise Gaussian, evaluasi subject-independent | ✅ selesai |
+| **A1** | Data, praproses, noise Gaussian, evaluasi subject-independent, diagnosa identitas | ✅ selesai |
 | **A2** | SWT Haar + PHOG 680-D | ✅ selesai |
 | **A3** | LDA, baseline, LS-SVM OvO, grid search | ✅ Minggu 12–13; Minggu 14 (Jaya, PSO/GA) belum |
 | **A4** | Web (HTML/CSS/JS) | ⏳ belum |
@@ -85,6 +85,18 @@ Interpretasi: CK+ memuat 3 frame berurutan per sekuens, sehingga split acak
 menempatkan frame se-subjek di train *dan* test. Hampir separuh akurasi berasal
 dari pengenalan identitas, bukan ekspresi.
 
+**Diagnosa identitas (A1) — mengapa akurasinya jatuh:**
+
+| Pengukuran | CK+ | JAFFE |
+|---|---|---|
+| Menebak subjek dari fitur 680-D (peluang: 1,03% / 10,00%) | **98,58%** | **99,53%** |
+| Emosi per subjek — fitur mentah (tanpa LDA) | **89,90%** | **57,68%** |
+| Emosi per subjek — LDA nested | 53,19% | 36,00% |
+| Penalti LDA | 36,71 poin | 21,69 poin |
+
+Kesimpulan: fitur hybrid hampir sepenuhnya memuat identitas, dan **LDA merugikan**
+pada protokol jujur. Detail di `docs/hasil.md` §5.
+
 ## 7. Perintah penting
 
 ```powershell
@@ -92,6 +104,7 @@ dari pengenalan identitas, bukan ekspresi.
 .\run.ps1 pipeline    # notebook pipeline lengkap
 .\run.ps1 noise       # artefak noise Gaussian
 .\run.ps1 split       # split acak vs per-subjek
+.\run.ps1 identity    # diagnosa kebocoran identitas subjek
 .\run.ps1 report      # tampilkan tabel hasil
 .\run.ps1 check       # diagnosa DLL yang diblokir
 ```
@@ -100,7 +113,8 @@ dari pengenalan identitas, bukan ekspresi.
 
 Kebijakan *Application Control* (WDAC / Device Guard) pada Windows dapat
 memblokir DLL biner Python secara dinamis. Yang pernah teramati: `pywt`,
-`cv2`, `_imaging`, `_pydantic_core`, `_sparsetools`.
+`cv2`, `_imaging`, `_pydantic_core`, `_sparsetools`, `pandas._libs._ujson`,
+`sklearn._gradient_boosting`.
 
 Dampaknya:
 
@@ -108,6 +122,8 @@ Dampaknya:
 |---|---|
 | `pywt` | `tests/test_features.py` (di-skip otomatis) |
 | `cv2` | pembacaan citra di notebook A1 |
+| `pandas` (`_ujson`) | **`import pandas` gagal total** — CSV ditulis dengan modul `csv` bawaan |
+| `sklearn` (`_gradient_boosting`) | `RandomForestClassifier` — dilewati otomatis di diagnosa identitas |
 
 **Penting:** modul `features.py` sudah punya **fallback SWT Haar murni numpy**
 yang identik dengan PyWavelets (selisih < 1e-12). Jadi bila `pywt` diblokir,

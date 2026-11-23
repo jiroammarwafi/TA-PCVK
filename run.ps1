@@ -6,6 +6,7 @@
 #    .\run.ps1 pipeline    buka notebook pipeline lengkap
 #    .\run.ps1 noise       bangun artefak citra ber-noise (A1)
 #    .\run.ps1 split       evaluasi split acak vs subject-independent (A1)
+#    .\run.ps1 identity    diagnosa kebocoran identitas subjek (A1)
 #    .\run.ps1 baseline    evaluasi baseline LDA + SVM-RBF (A3)
 #    .\run.ps1 lssvm       evaluasi LS-SVM OvO + grid search (A3)
 #    .\run.ps1 report      tampilkan semua tabel hasil
@@ -14,7 +15,7 @@
 # ============================================================================
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("test", "pipeline", "noise", "split", "baseline", "lssvm", "report", "check", "clean", "help")]
+    [ValidateSet("test", "pipeline", "noise", "split", "identity", "baseline", "lssvm", "report", "check", "clean", "help")]
     [string]$Task = "help"
 )
 
@@ -56,6 +57,10 @@ switch ($Task) {
         Write-Host "[split] split acak vs subject-independent (A1)" -ForegroundColor Cyan
         Invoke-Py @("research\a1-data-preprocessing\evaluate_subject_independent.py")
     }
+    "identity" {
+        Write-Host "[identity] diagnosa kebocoran identitas subjek (A1)" -ForegroundColor Cyan
+        Invoke-Py @("research\a1-data-preprocessing\diagnose_identity.py")
+    }
     "baseline" {
         Write-Host "[baseline] LDA + SVM-RBF (A3)" -ForegroundColor Cyan
         Invoke-Py @("research\a3-model-optimization\evaluate_baseline.py")
@@ -68,6 +73,7 @@ switch ($Task) {
         Write-Host "[report] tabel hasil" -ForegroundColor Cyan
         $files = @(
             "reports\a1-subject-independent\subject_independent_summary.csv",
+            "reports\a1-subject-independent\identity_summary.csv",
             "reports\a3-models\baseline_summary.csv",
             "reports\a3-models\lssvm_multiclass_summary.csv"
         )

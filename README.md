@@ -40,7 +40,8 @@ Struktur dipisah **per divisi**: kode `.py` di `research/a{1,2,3}-*/`, seluruh
 ├── research/                  # SEMUA kode penelitian (A1–A3)
 │   ├── a1-data-preprocessing/
 │   │   ├── noise.py                        # [A1] Artefak citra ber-noise Gaussian
-│   │   └── evaluate_subject_independent.py # [A1] Split acak vs per-subjek
+│   │   ├── evaluate_subject_independent.py # [A1] Split acak vs per-subjek
+│   │   └── diagnose_identity.py            # [A1] Diagnosa kebocoran identitas subjek
 │   ├── a2-feature-engineering/
 │   │   ├── __init__.py
 │   │   └── features.py                     # [A2] SWT Haar + PHOG (680-D)
@@ -65,7 +66,7 @@ Struktur dipisah **per divisi**: kode `.py` di `research/a{1,2,3}-*/`, seluruh
 │   └── a2-features/           # [A2] ck/jaffe_features.npz (680-D float32)
 │
 ├── reports/                   # Hasil, dipisah per divisi
-│   ├── a1-subject-independent/   # subject_independent_{summary.csv,ck,jaffe}.json
+│   ├── a1-subject-independent/   # subject_independent_*, identity_* (json + csv)
 │   ├── a2-features/              # phog_levels_visualization.png
 │   └── a3-models/
 │       ├── baseline_{summary.csv,ck_results.json,jaffe_results.json}
@@ -76,14 +77,16 @@ Struktur dipisah **per divisi**: kode `.py` di `research/a{1,2,3}-*/`, seluruh
 │   ├── arsitektur.md          # diagram alur & pembagian tanggung jawab
 │   ├── metodologi.md          # praproses, fitur, LS-SVM, protokol evaluasi
 │   ├── hasil.md               # ringkasan semua angka + interpretasi
+│   ├── bab3-dataset-dan-praproses.md  # draft Bab 3 (dataset & praproses)
 │   └── referensi/             # PDF jurnal
 │
-├── tests/                     # 41 unit test (semua divisi)
+├── tests/                     # 50 item test (49 lulus, 1 modul di-skip)
 │   ├── test_features.py          # [A2]
 │   ├── test_baseline.py          # [A3]
 │   ├── test_lssvm.py             # [A3]
 │   ├── test_noise.py             # [A1]
-│   └── test_subject_independent.py  # [A1]
+│   ├── test_subject_independent.py  # [A1]
+│   └── test_identity_diagnostic.py  # [A1]
 │
 ├── scripts/
 │   └── check_env.py           # diagnosa DLL yang diblokir Application Control
@@ -146,6 +149,7 @@ Satu pintu untuk semua perintah umum:
 .\run.ps1 pipeline    # buka notebook pipeline lengkap
 .\run.ps1 noise       # bangun artefak citra ber-noise (A1)
 .\run.ps1 split       # evaluasi split acak vs subject-independent (A1)
+.\run.ps1 identity    # diagnosa kebocoran identitas subjek (A1)
 .\run.ps1 baseline    # evaluasi baseline LDA + SVM-RBF (A3)
 .\run.ps1 lssvm       # evaluasi LS-SVM OvO + grid search (A3)
 .\run.ps1 report      # tampilkan semua tabel hasil
@@ -292,16 +296,9 @@ Verifikasi statistik (CK+, 981 citra):
 | Tanpa noise | 94,08 / 99,51 / 98,38 | 95,23 / 99,61 / 98,99 |
 | Dengan noise (var 0,01–0,1) | 95,95 / 96,86 / **97,17** | 91,50 / 98,59 / **97,59** |
 
-> Perhatikan: pada jurnal, angka noise **CK+ = 97,17%** dan **JAFFE = 97,59%**. Keduanya berbeda; jangan tertukar.
+> Perhatikan: pada jurnal, angka noise **CK+ = 97,17%** dan **JAFFE = 97,59%**. Keduanya berbeda; jangan tertukar — sebagian rangkuman sering salah menulis 97,17% sebagai angka JAFFE.
 
-**Rujukan angka jurnal (Tabel 14)** — hanya sebagai pembanding, bukan target:
-
-| Kondisi | CK+ Sen/Spe/Acc | JAFFE Sen/Spe/Acc |
-|---|---|---|
-| Tanpa noise | 94,08 / 99,51 / 98,38 | 95,23 / 99,61 / 98,99 |
-| Dengan noise (var 0,01–0,1) | 95,95 / 96,86 / **97,17** | 91,50 / 98,59 / **97,59** |
-
-> Catatan: angka noise jurnal adalah **CK+ 97,17%** dan **JAFFE 97,59%**. Jangan tertukar — sebagian rangkuman sering salah menulis 97,17% sebagai angka JAFFE.
+> Status: artefak citra ber-noise **sudah dibuat**, tetapi evaluasi akurasi pada data ber-noise **belum dijalankan** (menunggu A2 mengekstrak ulang fitur, lalu A3 mengevaluasi). Lihat `docs/hasil.md` §4.
 
 ### Minggu 14 — Evaluasi Subject-Independent
 
@@ -318,7 +315,8 @@ python research/a1-data-preprocessing/evaluate_subject_independent.py
 
 Skrip melakukan **assert** bahwa tidak ada subjek yang muncul di train dan test sekaligus, lalu melaporkan selisih akurasi antar kedua protokol.
 
-Artefak: `reports/subject_independent_{ck,jaffe}.json` dan `reports/subject_independent_summary.csv`.
+Artefak: `reports/a1-subject-independent/subject_independent_{ck,jaffe}.json` dan
+`subject_independent_summary.csv`.
 
 **Hasil (pipeline LDA → StandardScaler → OvO LS-SVM, 5-fold):**
 
@@ -337,6 +335,54 @@ Temuan penting:
 2. Namun hampir **setengah** akurasi tersebut berasal dari kebocoran identitas: dengan subjek yang benar-benar terpisah, akurasi jatuh ke **48,21%**.
 3. Penyebabnya: CK+ berisi 3 frame berurutan per sekuens (327 sekuens), sehingga pada split acak frame se-subjek muncul di train *dan* test. JAFFE juga menunjukkan pola serupa karena setiap subjek menyumbang 7 ekspresi.
 4. Kesimpulan: untuk dataset dengan banyak citra per orang, **akurasi split acak tidak boleh dilaporkan sebagai kemampuan generalisasi**. Angka subject-independent inilah estimasi yang jujur.
+
+### Minggu 14 — Diagnosa Kebocoran Identitas
+
+`research/a1-data-preprocessing/diagnose_identity.py` mengukur **penyebab**
+kejatuhan di atas: seberapa besar vektor fitur 680-D memuat identitas orang,
+bukan ekspresi.
+
+```powershell
+python research/a1-data-preprocessing/diagnose_identity.py
+# atau
+.\run.ps1 identity
+```
+
+Tiga pengukuran:
+
+| Kunci hasil | Protokol split | Yang diukur |
+|---|---|---|
+| `subject_identification` | **acak** | kemampuan menebak *siapa* orangnya dari fitur |
+| `raw_features` | per subjek | akurasi emosi pada fitur mentah, tanpa LDA |
+| `lda_nested` | per subjek, LDA per fold | akurasi emosi setelah reduksi LDA |
+
+> Tugas "tebak subjek" sengaja memakai split **acak**: kebocoran pada protokol
+> split acak memang terjadi karena frame orang yang sama muncul di train *dan*
+> test. Dengan split per subjek, subjek uji tidak dikenal model sehingga
+> akurasinya selalu ~0% dan tidak mengukur kebocoran.
+
+**Hasil:**
+
+| Pengukuran | CK+ | JAFFE |
+|---|---|---|
+| Menebak subjek (peluang 1,03% / 10,00%) | **98,58%** | **99,53%** |
+| Emosi per subjek — fitur mentah (logreg) | **89,90%** | **57,68%** |
+| Emosi per subjek — LDA nested (6 komponen) | 53,19% | 36,00% |
+| Penalti LDA | **36,71 poin** | **21,69 poin** |
+
+Kesimpulan: fitur hybrid hampir sepenuhnya memuat identitas, **dan LDA justru
+membuang informasi ekspresi** pada protokol jujur (CK+ 89,90% → 53,19%).
+Karena itu A3 disarankan melaporkan protokol subject-independent **dengan dan
+tanpa LDA**.
+
+Artefak: `reports/a1-subject-independent/identity_{ck,jaffe}.json` dan
+`identity_summary.csv`.
+
+> Catatan lingkungan: pada mesin dengan Application Control, `pandas` dapat
+> gagal diimpor total (`_ujson` diblokir) sehingga CSV ditulis memakai modul
+> `csv` bawaan. `RandomForestClassifier` juga dapat diblokir
+> (`_gradient_boosting`); klasifier itu dilewati otomatis dan dicatat di
+> `skipped_classifiers`.
 
 
 ## A2 — Feature Engineering

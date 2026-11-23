@@ -1,0 +1,86 @@
+{
+  "n_samples": 213,
+  "n_subjects": 10,
+  "n_classes": 7,
+  "class_names": [
+    "anger",
+    "disgust",
+    "fear",
+    "happy",
+    "neutral",
+    "sadness",
+    "surprise"
+  ],
+  "chance_expression": 0.14285714285714285,
+  "min_images_per_subject": 5,
+  "subject_identification": {
+    "accuracy": 0.9953051643192489,
+    "std": 0.006639500292831424,
+    "fold_accuracies": [
+      0.9859,
+      1.0,
+      1.0
+    ],
+    "elapsed_s": 0.04,
+    "split": "random",
+    "n_subjects_evaluated": 10,
+    "n_samples_evaluated": 213,
+    "chance": 0.1,
+    "excess_over_chance": 0.9947835159102765
+  },
+  "raw_features": {
+    "svc_rbf": {
+      "accuracy": 0.4657188160676532,
+      "std": 0.158936484653064,
+      "fold_accuracies": [
+        0.3488,
+        0.5455,
+        0.5349,
+        0.225,
+        0.6744
+      ],
+      "elapsed_s": 0.09,
+      "excess_over_chance": 0.37667195207892873
+    },
+    "logreg": {
+      "accuracy": 0.5768498942917548,
+      "std": 0.18050424984512006,
+      "fold_accuracies": [
+        0.5116,
+        0.7273,
+        0.6977,
+        0.25,
+        0.6977
+      ],
+      "elapsed_s": 0.23,
+      "excess_over_chance": 0.506324876673714
+    }
+  },
+  "skipped_classifiers": {
+    "random_forest": "ImportError: DLL load failed while importing _gradient_boosting: An Application Control policy has blocked this file."
+  },
+  "lda_nested": {
+    "accuracy": 0.3599682875264271,
+    "std": 0.05470515160551696,
+    "fold_accuracies": [
+      0.3721,
+      0.4318,
+      0.3953,
+      0.275,
+      0.3256
+    ],
+    "n_components": 6,
+    "elapsed_s": 0.21,
+    "excess_over_chance": 0.2532963354474983
+  },
+  "summary": {
+    "subject_identification_accuracy": 0.9953051643192489,
+    "subject_identification_excess": 0.9947835159102765,
+    "best_raw_classifier": "logreg",
+    "best_raw_accuracy": 0.5768498942917548,
+    "best_raw_excess": 0.506324876673714,
+    "lda_nested_accuracy": 0.3599682875264271,
+    "lda_penalty_points": 0.2168816067653277,
+    "identity_dominates_expression": true
+  }
+}

@@ -56,6 +56,7 @@ reduksi dimensi → klasifikasi → evaluasi.
 │                                                                     │
 │  noise Gaussian var 0.01–0.1   →   data/a1-noise/*.npz              │
 │  split acak vs subject-independent → reports/a1-subject-independent │
+│  diagnosa identitas subjek     →   reports/.../identity_*.json       │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -67,7 +68,7 @@ reduksi dimensi → klasifikasi → evaluasi.
 | Orkestrasi (narasi) | `research/pipeline/` | notebook: penjelasan + pemanggilan modul |
 | Artefak (data) | `data/a1-*/`, `data/a2-*/` | `.npz`, tidak di-commit bila besar |
 | Hasil (laporan) | `reports/a1-*/`, `reports/a2-*/`, `reports/a3-*/` | JSON, CSV, PNG |
-| Verifikasi | `tests/` | pytest, 41 test |
+| Verifikasi | `tests/` | pytest, 50 item (49 lulus, 1 modul di-skip) |
 | Aplikasi | `app/` | disiapkan untuk A4 |
 
 **Prinsip:** notebook **tidak menyalin logika**. Semua perhitungan ada di modul
@@ -85,6 +86,16 @@ Semua artefak memakai `.npz` (bukan pickle) agar portabel dan aman.
 | `*_noise_v{v}.npz` | idem praproses + `variance`, `seed`, `source` | sama dengan praproses |
 
 Kunci `subjects` inilah yang memungkinkan evaluasi subject-independent.
+
+Hasil diagnosa identitas (`identity_{ck,jaffe}.json`) memakai struktur:
+
+| Kunci | Isi |
+|---|---|
+| `subject_identification` | akurasi menebak subjek (split acak) + `chance` + `excess_over_chance` |
+| `raw_features` | akurasi emosi pada fitur mentah per klasifier (protokol per subjek) |
+| `lda_nested` | akurasi emosi setelah LDA di-fit per fold |
+| `skipped_classifiers` | klasifier yang tidak dapat dimuat di lingkungan tersebut |
+| `summary` | `lda_penalty_points`, `identity_dominates_expression`, dll |
 
 ## 4. Alur data antar divisi
 
