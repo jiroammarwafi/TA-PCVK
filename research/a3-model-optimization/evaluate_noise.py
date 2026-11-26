@@ -122,10 +122,9 @@ def evaluate_noise_robustness(
 
         # ── Optimasi Jaya untuk mencari C* dan sigma* ──
         def objective(params):
-            C = 2.0 ** params[0]
-            sigma = 2.0 ** params[1]
-            # Cross-val inner mini (3-fold) untuk efisiensi
-            inner_skf = StratifiedKFold(n_splits=3, shuffle=False)
+            C = float(2.0 ** params[0])
+            sigma = float(2.0 ** params[1])
+            inner_skf = StratifiedKFold(n_splits=3, shuffle=True, random_state=RANDOM_STATE + fold_idx)
             inner_accs = []
             for tr, va in inner_skf.split(X_train_scaled, y_train):
                 clf_tmp = OneVsOneLSSVMClassifier(gamma=C, sigma=sigma, kernel="rbf")
@@ -133,19 +132,19 @@ def evaluate_noise_robustness(
                     warnings.simplefilter("ignore")
                     clf_tmp.fit(X_train_scaled[tr], y_train[tr])
                 inner_accs.append(np.mean(clf_tmp.predict(X_train_scaled[va]) == y_train[va]))
-            return 1.0 - np.mean(inner_accs)
+            return float(np.mean(inner_accs))
 
         bounds = [C_RANGE, SIGMA_RANGE]
         jaya = JayaOptimizer(
-            obj_func=objective,
             bounds=bounds,
             pop_size=JAYA_POP_SIZE,
             max_iter=JAYA_MAX_ITER,
-            seed=RANDOM_STATE + fold_idx,
+            random_state=RANDOM_STATE + fold_idx,
+            maximize=True,
         )
-        best_params, _ = jaya.optimize()
-        best_C = 2.0 ** best_params[0]
-        best_sigma = 2.0 ** best_params[1]
+        res = jaya.optimize(objective)
+        best_C = float(2.0 ** res.best_params[0])
+        best_sigma = float(2.0 ** res.best_params[1])
 
         # ── Latih model final dengan hyperparameter terbaik ──
         clf = OneVsOneLSSVMClassifier(gamma=best_C, sigma=best_sigma, kernel="rbf")
