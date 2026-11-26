@@ -75,7 +75,7 @@ dapat diregenerasi deterministik dengan `seed=42`.
 | A1 — bangun artefak citra ber-noise | A1 | ✅ selesai | 8 file `.npz`, kunci `X, y, subjects, class_names, variance, seed, source` |
 | A1 — verifikasi statistik noise | A1 | ✅ selesai | tabel 4.2 di bawah |
 | A2 — ekstraksi fitur 680-D dari citra ber-noise | A2 | ✅ selesai | 8 file `.npz` di `data/a2-features/*_features_noise_v*.npz` |
-| A3 — evaluasi akurasi pada data ber-noise | A3 | ✅ siap | artefak fitur A2 telah tersedia untuk `evaluate_noise.py` |
+| A3 — evaluasi akurasi pada data ber-noise | A3 | ✅ selesai | `reports/a3-models/table14_noise_robustness.csv` |
 
 ### 4.2 Verifikasi statistik
 
@@ -104,6 +104,21 @@ terasa pada variansi besar (0,10), di mana deviasi mencapai ~19%.
 | Dengan noise | 95,95 / 96,86 / **97,17** | 91,50 / 98,59 / **97,59** |
 
 > Pada jurnal, noise **CK+ = 97,17%** dan **JAFFE = 97,59%**. Keduanya berbeda.
+
+### 4.4 Hasil Replikasi Tabel 14 (Evaluasi Riil Fitur Ber-noise A2)
+
+Sumber: `reports/a3-models/table14_noise_robustness.csv` dan `.json`
+Perintah: `python research/a3-model-optimization/evaluate_noise.py`
+
+| Variansi Noise | Akurasi CK+ (%) | Std CK+ (%) | Akurasi JAFFE (%) | Std JAFFE (%) |
+|---|---|---|---|---|
+| 0.00 (Bersih) | **95,62** | 1,60 | **79,86** | 7,79 |
+| 0.01 | 19,47 | 3,56 | 30,17 | 14,12 |
+| 0.02 | 16,21 | 5,89 | 24,93 | 9,35 |
+| 0.05 | 14,47 | 6,44 | 19,76 | 6,55 |
+| 0.10 | 14,47 | 6,63 | 17,84 | 4,31 |
+
+> **Catatan Analisis Kritis:** Pada ekstraksi fitur riil (SWT Haar + PHOG) dari citra yang diberi noise Gaussian secara langsung tanpa denosing filter, akurasi klasifikasi mengalami penurunan drastis karena gradien tepi PHOG terdistorsi oleh bintik-bintik derau frekuensi tinggi. Hal ini merupakan temuan empiris penting bahwa model tanpa preprocessing denoising sangat rentan terhadap derau Gaussian riil.
 
 ## 5. Diagnosa identitas subjek
 
@@ -154,15 +169,19 @@ Pembanding klasifier pada fitur mentah (protokol per subjek):
 > pernah ada di data latih sehingga akurasinya selalu ~0% — itu mengukur
 > generalisasi ke orang baru, bukan kebocoran yang ingin dibuktikan.
 
-## 6. Yang belum dikerjakan
+## 6. Status Pengerjaan Seluruh Divisi
 
-| Item | Status |
-|---|---|
-| Algoritma Jaya (inti judul jurnal) | ❌ belum — masih grid search |
-| Pembanding PSO & GA | ❌ belum |
-| Kurva konvergensi optimizer | ❌ belum |
-| Ekstraksi fitur dari citra ber-noise (A2) | ✅ selesai — 8 file di `data/a2-features/` |
-| Evaluasi akurasi pada data ber-noise (A3) | ✅ siap dijalankan (`evaluate_noise.py`) |
-| Perbandingan Lin/Poly LS-SVM, RF, BPNN | ❌ belum |
-| Waktu latih/uji | ❌ belum |
-| Web (A4) | ⏳ belum |
+| Item | Divisi | Status | Keterangan / Artefak |
+|---|---|---|---|
+| Praproses citra & normalisasi (A1) | A1 | ✅ Selesai | `data/a1-preprocessing/*.npz` |
+| Artefak citra ber-noise Gaussian (A1) | A1 | ✅ Selesai | 8 file di `data/a1-noise/` |
+| Ekstraksi fitur SWT + PHOG 680-D (A2) | A2 | ✅ Selesai | `data/a2-features/*.npz` |
+| Ekstraksi fitur dari citra ber-noise (A2) | A2 | ✅ Selesai | 8 file di `data/a2-features/*_noise_v*.npz` |
+| Algoritma Jaya (A3) | A3 | ✅ Selesai | `research/a3-model-optimization/optimizers.py` |
+| Pembanding PSO & GA (A3) | A3 | ✅ Selesai | `table3_optimizer_comparison.csv` |
+| Kurva konvergensi optimizer (A3) | A3 | ✅ Selesai | `figures/convergence_ck.png`, `convergence_jaffe.png` |
+| Perbandingan Lin/Poly LS-SVM, RF, BPNN (A3) | A3 | ✅ Selesai | `table11_classifier_comparison.csv` |
+| Waktu latih/uji (A3) | A3 | ✅ Selesai | `table10_execution_time.csv` |
+| Evaluasi akurasi data ber-noise (A3) | A3 | ✅ Selesai | `table14_noise_robustness.csv` |
+| Ekspor model terlatih .npz (A3) | A3 | ✅ Selesai | `reports/a3-models/model.npz`, `app/model.npz` |
+| Web Deployment / Antarmuka Pengguna (A4) | A4 | ⏳ On Progress | Siap menggunakan `app/model.npz` & `app/inference.py` |
